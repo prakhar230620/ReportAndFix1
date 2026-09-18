@@ -1,0 +1,22 @@
+"use client";
+
+export default function ShareButton({ path, title }: { path: string; title: string }) {
+  async function handleShare() {
+    const url = `${window.location.origin}${path}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url });
+      } catch {
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      alert("Link copied to clipboard");
+    }
+  }
+
+  return (
+    <button onClick={handleShare} className="text-xs underline">
+      Share
+    </button>
+  );
+}
