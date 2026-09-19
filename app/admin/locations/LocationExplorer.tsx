@@ -125,6 +125,11 @@ export default function LocationExplorer({
     }
     return chain;
   }
+  function pathOf(id: string): string {
+    return breadcrumb(id)
+      .map((l) => l.name)
+      .join(" / ");
+  }
 
   const total = locations.filter((l) => !l.archived).length;
   const withQr = locations.filter((l) => !l.archived && l.qr_token).length;
@@ -148,11 +153,19 @@ export default function LocationExplorer({
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-neutral-900">Locations</h1>
-        <p className="text-sm text-neutral-500">
-          Manage your campus structure, assign QR codes, and organise easily.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-neutral-900">Locations</h1>
+          <p className="text-sm text-neutral-500">
+            Manage your campus structure, assign QR codes, and organise easily.
+          </p>
+        </div>
+        <a
+          href="/admin/locations/qr-sheet"
+          className="flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+        >
+          <QrCode size={15} /> Bulk QR
+        </a>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -385,7 +398,8 @@ export default function LocationExplorer({
       {moveModal && (
         <MoveLocationModal
           loc={moveModal}
-          targets={moveTargets(moveModal)}
+          currentPath={pathOf(moveModal.id)}
+          targets={moveTargets(moveModal).map((t) => ({ id: t.id, path: pathOf(t.id) })).sort((a, b) => a.path.localeCompare(b.path))}
           orgName={orgName}
           pending={pending}
           onCancel={() => setMoveModal(null)}
@@ -727,6 +741,7 @@ function EditLocationModal({
 
 function MoveLocationModal({
   loc,
+  currentPath,
   targets,
   orgName,
   pending,
@@ -734,7 +749,8 @@ function MoveLocationModal({
   onSubmit,
 }: {
   loc: Loc;
-  targets: Loc[];
+  currentPath: string;
+  targets: { id: string; path: string }[];
   orgName: string;
   pending: boolean;
   onCancel: () => void;
@@ -743,6 +759,9 @@ function MoveLocationModal({
   const [target, setTarget] = useState<string>("__root__");
   return (
     <ModalShell title={`Move "${loc.name}"`} onCancel={onCancel}>
+      <p className="mb-3 text-xs text-neutral-500">
+        Currently at: <span className="font-medium text-neutral-700">{currentPath}</span>
+      </p>
       <label className="mb-4 flex flex-col gap-1 text-sm">
         New parent location
         <select
@@ -753,7 +772,7 @@ function MoveLocationModal({
           <option value="__root__">{orgName} (top level)</option>
           {targets.map((t) => (
             <option key={t.id} value={t.id}>
-              {t.name}
+              {t.path}
             </option>
           ))}
         </select>

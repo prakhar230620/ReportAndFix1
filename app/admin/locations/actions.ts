@@ -70,6 +70,30 @@ export async function assignQr(id: string) {
   return { ok: true };
 }
 
+export async function assignQrBulk(ids: string[]) {
+  const supabase = await createClient();
+  const results: { id: string; error?: string }[] = [];
+
+  for (const id of ids) {
+    const { data: loc } = await supabase.from("locations").select("name").eq("id", id).single();
+    const { error } = await supabase
+      .from("locations")
+      .update({ qr_token: crypto.randomUUID(), location_code: code(loc?.name ?? "LOC") })
+      .eq("id", id);
+    results.push({ id, error: error?.message });
+  }
+
+  revalidatePath("/admin/locations");
+  revalidatePath("/admin/locations/qr-sheet");
+  const failed = results.filter((r) => r.error);
+  return {
+    ok: true,
+    succeeded: results.length - failed.length,
+    failed: failed.length,
+    errors: failed,
+  };
+}
+
 export async function removeQr(id: string) {
   const supabase = await createClient();
   const { error } = await supabase
