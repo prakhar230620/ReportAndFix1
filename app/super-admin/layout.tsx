@@ -28,7 +28,11 @@ export default async function SuperAdminLayout({
       <header className="border-b border-neutral-200 bg-white px-6 py-4">
         <nav className="mx-auto flex max-w-4xl items-center justify-between">
           <span className="font-semibold">Super Admin</span>
-          <a href="/" className="text-sm underline">Home</a>
+          <div className="flex gap-4">
+            <a href="/super-admin" className="text-sm underline">Overview</a>
+            <a href="/super-admin/admin-requests" className="text-sm underline">Admin Requests</a>
+            <a href="/" className="text-sm underline">Home</a>
+          </div>
         </nav>
       </header>
       <main className="mx-auto max-w-4xl px-6 py-8">{children}</main>

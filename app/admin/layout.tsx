@@ -35,6 +35,9 @@ export default async function AdminLayout({
             <a href="/admin/queue" className="text-sm underline">
               Queue
             </a>
+            <a href="/admin/role-requests" className="text-sm underline">
+              Role Requests
+            </a>
             <a href="/admin/locations" className="text-sm underline">
               Locations & QR
             </a>
