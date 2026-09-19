@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import BackButton from "@/app/components/BackButton";
 import {
   checkDuplicates,
   createComplaint,
@@ -188,6 +189,7 @@ export default function ReportForm({
   if (step.name === "duplicates") {
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col gap-4 px-6 py-10">
+      <BackButton />
         <h1 className="text-xl font-semibold">Similar reports found</h1>
         <p className="text-sm text-neutral-600">
           Is your issue one of these already-reported ones? Join it instead of
@@ -239,6 +241,7 @@ export default function ReportForm({
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col gap-4 px-6 py-10">
+      <BackButton />
       <div>
         <h1 className="text-xl font-semibold">{locationName}</h1>
         {locationSummary && <p className="text-sm text-neutral-500">{locationSummary}</p>}

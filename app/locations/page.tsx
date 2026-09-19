@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import QRScanButton from "./QRScanButton";
+import BackButton from "@/app/components/BackButton";
 
 export default async function LocationsPickerPage() {
   const supabase = await createClient();
@@ -36,6 +37,7 @@ export default async function LocationsPickerPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col gap-4 px-6 py-10">
+      <BackButton />
       <h1 className="text-xl font-semibold">Report an issue</h1>
       <p className="text-sm text-neutral-600">
         Scan the QR code at the location, or pick it from the list below.

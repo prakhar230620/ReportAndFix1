@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import ReportForm from "./ReportForm";
+import BackButton from "@/app/components/BackButton";
 
 export default async function ReportQrPage({
   params,
@@ -18,6 +19,7 @@ export default async function ReportQrPage({
   if (!location) {
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center gap-2 px-6 text-center">
+        <BackButton className="self-start" />
         <h1 className="text-xl font-semibold">QR code not recognized</h1>
         <p className="text-neutral-600">
           This QR code doesn&apos;t match any location in our system.
@@ -29,6 +31,7 @@ export default async function ReportQrPage({
   if (!location.active) {
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center gap-2 px-6 text-center">
+        <BackButton className="self-start" />
         <h1 className="text-xl font-semibold">This QR is no longer active</h1>
         <p className="text-neutral-600">
           Please contact your campus admin if you believe this is a mistake.
@@ -50,6 +53,7 @@ export default async function ReportQrPage({
     const next = `/report/${token}`;
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center gap-4 px-6 text-center">
+        <BackButton className="self-start" />
         <h1 className="text-xl font-semibold">{location.name}</h1>
         {locationSummary && <p className="text-neutral-600">{locationSummary}</p>}
         <p className="text-neutral-600">Log in to report an issue at this location.</p>
@@ -80,6 +84,7 @@ export default async function ReportQrPage({
   if (profile?.college_id !== location.college_id) {
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center gap-2 px-6 text-center">
+        <BackButton className="self-start" />
         <h1 className="text-xl font-semibold">Wrong college account</h1>
         <p className="text-neutral-600">
           Your account belongs to a different college than this location. Log in with

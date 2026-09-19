@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import VoteButton from "@/app/components/VoteButton";
 import ShareButton from "@/app/components/ShareButton";
+import BackButton from "@/app/components/BackButton";
 
 export default async function IssueDetailPage({
   params,
@@ -24,6 +25,7 @@ export default async function IssueDetailPage({
   if (!complaint) {
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center gap-2 px-6 text-center">
+        <BackButton className="self-start" />
         <h1 className="text-xl font-semibold">Not found</h1>
         <p className="text-neutral-600">No complaint with this ID exists.</p>
       </main>
@@ -73,6 +75,7 @@ export default async function IssueDetailPage({
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col gap-4 px-6 py-10">
+      <BackButton />
       <div className="flex items-center justify-between text-xs text-neutral-500">
         <span>{complaint.public_id}</span>
         <ShareButton path={`/issues/${complaint.public_id}`} title={complaint.title} />

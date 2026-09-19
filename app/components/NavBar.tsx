@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import BackButton from "./BackButton";
 
 export default function NavBar({
   brand,
@@ -14,7 +15,10 @@ export default function NavBar({
   return (
     <header className="border-b border-neutral-200 bg-white px-4 py-3 sm:px-6">
       <nav className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <span className="font-semibold text-neutral-900">{brand}</span>
+        <div className="flex items-center gap-3">
+          <BackButton fallbackHref="/" />
+          <span className="font-semibold text-neutral-900">{brand}</span>
+        </div>
         <div className="flex flex-wrap gap-1.5">
           {items.map((item) => {
             const active =

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import VoteButton from "@/app/components/VoteButton";
 import ShareButton from "@/app/components/ShareButton";
+import BackButton from "@/app/components/BackButton";
 
 export const maxDuration = 30;
 
@@ -97,6 +98,7 @@ export default async function FeedPage({
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col gap-8 px-6 py-8 pb-28">
+      <BackButton />
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{collegeName}</h1>
         <a href="/" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">

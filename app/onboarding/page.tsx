@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { completeOnboarding } from "./actions";
+import CollegeRoleFields from "@/app/components/CollegeRoleFields";
+import BackButton from "@/app/components/BackButton";
 
 export default async function OnboardingPage({
   searchParams,
@@ -27,11 +29,12 @@ export default async function OnboardingPage({
 
   const { data: colleges } = await supabase
     .from("colleges")
-    .select("id, name")
+    .select("id, name, allow_worker_signup, allow_admin_signup")
     .order("name");
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
+      <BackButton className="mb-4" />
       <h1 className="mb-2 text-2xl font-semibold">One last step</h1>
       <p className="mb-6 text-sm text-neutral-600">
         Tell us your college and how you&apos;ll use ReportAndFix.
@@ -54,40 +57,7 @@ export default async function OnboardingPage({
           />
         </label>
 
-        <label className="flex flex-col gap-1 text-sm">
-          College
-          <select
-            name="college_id"
-            required
-            className="rounded-md border border-neutral-300 px-3 py-2"
-          >
-            <option value="">Select your college</option>
-            {(colleges ?? []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <fieldset className="flex flex-col gap-2 text-sm">
-          <legend className="mb-1 font-medium">I am a...</legend>
-          <label className="flex items-center gap-2 rounded-md border border-neutral-300 px-3 py-2">
-            <input type="radio" name="requested_role" value="user" defaultChecked />
-            Student / general user
-          </label>
-          <label className="flex items-center gap-2 rounded-md border border-neutral-300 px-3 py-2">
-            <input type="radio" name="requested_role" value="worker" />
-            Worker (maintenance / support staff)
-          </label>
-          <label className="flex items-center gap-2 rounded-md border border-neutral-300 px-3 py-2">
-            <input type="radio" name="requested_role" value="college_admin" />
-            College Admin
-          </label>
-          <p className="text-xs text-neutral-500">
-            Worker and College Admin access requires approval after you continue.
-          </p>
-        </fieldset>
+        <CollegeRoleFields colleges={colleges ?? []} />
 
         <button
           type="submit"

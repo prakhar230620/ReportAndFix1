@@ -1,4 +1,5 @@
 import { login, signInWithGoogle } from "@/app/auth/actions";
+import BackButton from "@/app/components/BackButton";
 
 export default async function LoginPage({
   searchParams,
@@ -9,6 +10,7 @@ export default async function LoginPage({
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
+      <BackButton className="mb-4" />
       <h1 className="mb-6 text-2xl font-semibold">Log in</h1>
 
       {notice && (

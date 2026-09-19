@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import BackButton from "@/app/components/BackButton";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -39,6 +40,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
+      <BackButton className="mb-4" />
       <h1 className="mb-6 text-2xl font-semibold">Reset your password</h1>
       {error && (
         <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
