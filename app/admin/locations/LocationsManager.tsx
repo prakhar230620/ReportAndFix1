@@ -11,7 +11,7 @@ import CampusTree from "../campus/CampusTree";
 
 type Building = { id: string; name: string };
 type Floor = { id: string; label: string; building_id: string };
-type NodeType = { id: string; name: string };
+type NodeType = { id: string; name: string; typical_children: string[] };
 type Node = { id: string; parent_id: string | null; node_type_id: string; name: string; sort_order: number };
 type Location = {
   id: string;

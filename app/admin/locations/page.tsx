@@ -29,7 +29,7 @@ export default async function LocationsPage() {
         .select("id, name, location_code, location_type, active, qr_token, building_id, floor_id, node_id")
         .eq("college_id", collegeId)
         .order("name"),
-      supabase.from("node_types").select("id, name").eq("college_id", collegeId!).order("name"),
+      supabase.from("node_types").select("id, name, typical_children").eq("college_id", collegeId!).order("name"),
       supabase
         .from("campus_nodes")
         .select("id, parent_id, node_type_id, name, sort_order")

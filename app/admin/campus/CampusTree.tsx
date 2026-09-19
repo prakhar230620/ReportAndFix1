@@ -1,6 +1,19 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
+import {
+  ChevronRight,
+  ChevronDown,
+  Folder,
+  FolderOpen,
+  DoorOpen,
+  QrCode,
+  Pencil,
+  Trash2,
+  FolderPlus,
+  Check,
+  X,
+} from "lucide-react";
 import {
   createNodeType,
   createNode,
@@ -9,7 +22,7 @@ import {
   createLeafLocation,
 } from "./actions";
 
-type NodeType = { id: string; name: string };
+type NodeType = { id: string; name: string; typical_children: string[] };
 type Node = { id: string; parent_id: string | null; node_type_id: string; name: string; sort_order: number };
 type Location = {
   id: string;
@@ -30,7 +43,6 @@ export default function CampusTree({
   locations: Location[];
 }) {
   const [pending, startTransition] = useTransition();
-  const [newTypeName, setNewTypeName] = useState("");
 
   function run(fn: () => Promise<{ error?: string }>) {
     startTransition(async () => {
@@ -39,212 +51,196 @@ export default function CampusTree({
     });
   }
 
-  const typeName = (id: string) => nodeTypes.find((t) => t.id === id)?.name ?? "";
-  const childrenOf = (parentId: string | null) =>
-    nodes.filter((n) => n.parent_id === parentId);
+  const childrenOf = (parentId: string | null) => nodes.filter((n) => n.parent_id === parentId);
   const locationOf = (nodeId: string) => locations.find((l) => l.node_id === nodeId);
 
-  return (
-    <div className="flex flex-col gap-6">
-      <section className="rounded-md border border-neutral-200 p-3">
-        <h2 className="mb-2 text-sm font-semibold">Node types</h2>
-        <div className="mb-2 flex flex-wrap gap-2">
-          {nodeTypes.map((t) => (
-            <span
-              key={t.id}
-              className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-700"
-            >
-              {t.name}
-            </span>
-          ))}
-          {nodeTypes.length === 0 && (
-            <span className="text-xs text-neutral-500">No types yet — add one below.</span>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <input
-            value={newTypeName}
-            onChange={(e) => setNewTypeName(e.target.value)}
-            placeholder="e.g. Library, Lab, Room"
-            className="flex-1 rounded-md border border-neutral-300 px-2 py-1 text-sm"
-          />
-          <button
-            disabled={pending || !newTypeName.trim()}
-            onClick={() => {
-              const name = newTypeName;
-              setNewTypeName("");
-              run(() => createNodeType(name));
-            }}
-            className="rounded-md bg-neutral-900 px-3 py-1 text-xs text-white disabled:opacity-40"
-          >
-            Add type
-          </button>
-        </div>
-      </section>
+  const roots = childrenOf(null);
 
-      <section>
-        <h2 className="mb-2 text-sm font-semibold">Structure</h2>
-        <TreeLevel
-          parentId={null}
-          nodeTypes={nodeTypes}
-          childrenOf={childrenOf}
-          typeName={typeName}
-          locationOf={locationOf}
-          pending={pending}
-          run={run}
-          depth={0}
-        />
-      </section>
+  return (
+    <div className="rounded-lg border border-neutral-200 bg-white">
+      <div className="border-b border-neutral-100 px-3 py-2">
+        <TopLevelAdd nodeTypes={nodeTypes} pending={pending} run={run} />
+      </div>
+      <div className="p-2">
+        {roots.length === 0 && (
+          <p className="p-4 text-sm text-neutral-400">
+            Nothing here yet — add a Campus, Building or Ground to get started.
+          </p>
+        )}
+        {roots.map((node) => (
+          <TreeRow
+            key={node.id}
+            node={node}
+            depth={0}
+            nodeTypes={nodeTypes}
+            childrenOf={childrenOf}
+            locationOf={locationOf}
+            pending={pending}
+            run={run}
+          />
+        ))}
+      </div>
     </div>
   );
 }
 
-function TreeLevel({
-  parentId,
+function TopLevelAdd({
   nodeTypes,
-  childrenOf,
-  typeName,
-  locationOf,
   pending,
   run,
-  depth,
 }: {
-  parentId: string | null;
   nodeTypes: NodeType[];
-  childrenOf: (parentId: string | null) => Node[];
-  typeName: (id: string) => string;
-  locationOf: (nodeId: string) => Location | undefined;
   pending: boolean;
   run: (fn: () => Promise<{ error?: string }>) => void;
-  depth: number;
 }) {
-  const items = childrenOf(parentId);
-  const [addingTo, setAddingTo] = useState<string | null>(null);
-
-  return (
-    <div style={{ marginLeft: depth > 0 ? 16 : 0 }} className="flex flex-col gap-2">
-      {items.map((node) => (
-        <NodeRow
-          key={node.id}
-          node={node}
-          nodeTypes={nodeTypes}
-          childrenOf={childrenOf}
-          typeName={typeName}
-          locationOf={locationOf}
-          pending={pending}
-          run={run}
-          depth={depth}
-        />
-      ))}
-
-      {addingTo === parentId ? (
-        <AddNodeForm
-          nodeTypes={nodeTypes}
-          pending={pending}
-          onSubmit={(typeId, name) => {
-            run(() => createNode(parentId, typeId, name));
-            setAddingTo(null);
-          }}
-          onCancel={() => setAddingTo(null)}
-        />
-      ) : (
-        <button
-          disabled={pending || nodeTypes.length === 0}
-          onClick={() => setAddingTo(parentId)}
-          className="w-fit rounded-md border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 disabled:opacity-40"
-        >
-          {parentId === null ? "+ Add top-level node (e.g. Campus)" : "+ Add child"}
-        </button>
-      )}
-    </div>
+  const [open, setOpen] = useState(false);
+  return open ? (
+    <AddNodeInline
+      nodeTypes={nodeTypes}
+      suggested={nodeTypes.filter((t) => ["Campus", "Building", "Ground", "Office"].includes(t.name))}
+      pending={pending}
+      onSubmit={(typeId, name) => {
+        run(() => createNode(null, typeId, name));
+        setOpen(false);
+      }}
+      onCancel={() => setOpen(false)}
+    />
+  ) : (
+    <button
+      disabled={pending || nodeTypes.length === 0}
+      onClick={() => setOpen(true)}
+      className="flex items-center gap-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 disabled:opacity-40"
+    >
+      <FolderPlus size={14} /> New top-level (Campus, Ground, Office…)
+    </button>
   );
 }
 
-function NodeRow({
+function TreeRow({
   node,
+  depth,
   nodeTypes,
   childrenOf,
-  typeName,
   locationOf,
   pending,
   run,
-  depth,
 }: {
   node: Node;
+  depth: number;
   nodeTypes: NodeType[];
   childrenOf: (parentId: string | null) => Node[];
-  typeName: (id: string) => string;
   locationOf: (nodeId: string) => Location | undefined;
   pending: boolean;
   run: (fn: () => Promise<{ error?: string }>) => void;
-  depth: number;
 }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(depth < 2);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(node.name);
+  const [addingChild, setAddingChild] = useState(false);
   const [addingLocation, setAddingLocation] = useState(false);
   const [locName, setLocName] = useState("");
   const [locCode, setLocCode] = useState("");
 
-  const hasChildren = childrenOf(node.id).length > 0;
+  const children = childrenOf(node.id);
   const loc = locationOf(node.id);
+  const typeName = nodeTypes.find((t) => t.id === node.node_type_id)?.name ?? "";
+  const typeDef = nodeTypes.find((t) => t.id === node.node_type_id);
+  const isLeafy = children.length === 0;
+
+  const suggested = useMemo(() => {
+    if (!typeDef) return [];
+    return nodeTypes.filter((t) => typeDef.typical_children.includes(t.name));
+  }, [typeDef, nodeTypes]);
 
   return (
-    <div className="rounded-md border border-neutral-200 p-2">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          {hasChildren && (
-            <button onClick={() => setExpanded((e) => !e)} className="text-xs text-neutral-400">
-              {expanded ? "▾" : "▸"}
-            </button>
-          )}
-          {editing ? (
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="rounded-md border border-neutral-300 px-2 py-0.5 text-sm"
-            />
+    <div>
+      <div
+        className="group flex items-center gap-1.5 rounded-md py-1.5 pr-2 hover:bg-neutral-50"
+        style={{ paddingLeft: 8 + depth * 20 }}
+      >
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          className="flex h-5 w-5 shrink-0 items-center justify-center text-neutral-400"
+        >
+          {children.length > 0 ? (
+            expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
           ) : (
-            <span className="text-sm font-medium">{node.name}</span>
+            <span className="inline-block h-3.5 w-3.5" />
           )}
-          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-500">
-            {typeName(node.node_type_id)}
-          </span>
-          {loc && (
-            <a
-              href={`/report/${loc.qr_token}`}
-              className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] text-blue-700 underline"
-              target="_blank"
-            >
-              QR ready
-            </a>
-          )}
-        </div>
-        <div className="flex gap-1">
+        </button>
+
+        {isLeafy && loc ? (
+          <DoorOpen size={16} className="shrink-0 text-blue-500" />
+        ) : expanded ? (
+          <FolderOpen size={16} className="shrink-0 text-amber-500" />
+        ) : (
+          <Folder size={16} className="shrink-0 text-amber-500" />
+        )}
+
+        {editing ? (
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                run(() => renameNode(node.id, name));
+                setEditing(false);
+              }
+            }}
+            className="rounded border border-neutral-300 px-1.5 py-0.5 text-sm"
+          />
+        ) : (
+          <span className="text-sm text-neutral-800">{node.name}</span>
+        )}
+
+        <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-500">
+          {typeName}
+        </span>
+
+        {loc && (
+          <a
+            href={`/report/${loc.qr_token}`}
+            target="_blank"
+            className="flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-700"
+          >
+            <QrCode size={11} /> QR
+          </a>
+        )}
+
+        <span className="ml-auto flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
           {editing ? (
             <button
-              disabled={pending}
               onClick={() => {
                 run(() => renameNode(node.id, name));
                 setEditing(false);
               }}
-              className="text-xs text-blue-600"
+              className="text-green-600"
+              title="Save"
             >
-              Save
+              <Check size={14} />
             </button>
           ) : (
-            <button onClick={() => setEditing(true)} className="text-xs text-neutral-500">
-              Rename
+            <button onClick={() => setEditing(true)} className="text-neutral-400 hover:text-neutral-700" title="Rename">
+              <Pencil size={13} />
             </button>
           )}
-          {!loc && !hasChildren && (
+          {isLeafy && !loc && (
             <button
               onClick={() => setAddingLocation((v) => !v)}
-              className="text-xs text-neutral-500"
+              className="text-neutral-400 hover:text-blue-600"
+              title="Make reportable (generate QR)"
             >
-              Make reportable
+              <QrCode size={14} />
             </button>
           )}
+          <button
+            onClick={() => setAddingChild((v) => !v)}
+            className="text-neutral-400 hover:text-amber-600"
+            title="Add inside"
+          >
+            <FolderPlus size={14} />
+          </button>
           <button
             disabled={pending}
             onClick={() => {
@@ -252,26 +248,43 @@ function NodeRow({
                 run(() => deleteNode(node.id));
               }
             }}
-            className="text-xs text-red-500"
+            className="text-neutral-400 hover:text-red-600"
+            title="Delete"
           >
-            Delete
+            <Trash2 size={13} />
           </button>
-        </div>
+        </span>
       </div>
 
+      {addingChild && (
+        <div style={{ paddingLeft: 8 + (depth + 1) * 20 }} className="py-1">
+          <AddNodeInline
+            nodeTypes={nodeTypes}
+            suggested={suggested}
+            pending={pending}
+            onSubmit={(typeId, name) => {
+              run(() => createNode(node.id, typeId, name));
+              setAddingChild(false);
+              setExpanded(true);
+            }}
+            onCancel={() => setAddingChild(false)}
+          />
+        </div>
+      )}
+
       {addingLocation && (
-        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-neutral-50 p-2">
+        <div style={{ paddingLeft: 8 + (depth + 1) * 20 }} className="flex flex-wrap items-center gap-2 py-1">
           <input
             value={locName}
             onChange={(e) => setLocName(e.target.value)}
-            placeholder="Location name (e.g. Room 101)"
-            className="rounded-md border border-neutral-300 px-2 py-1 text-xs"
+            placeholder="Reportable name (e.g. Bench 3, Room 101)"
+            className="rounded border border-neutral-300 px-2 py-1 text-xs"
           />
           <input
             value={locCode}
             onChange={(e) => setLocCode(e.target.value)}
             placeholder="Code (optional)"
-            className="w-28 rounded-md border border-neutral-300 px-2 py-1 text-xs"
+            className="w-24 rounded border border-neutral-300 px-2 py-1 text-xs"
           />
           <button
             disabled={pending || !locName.trim()}
@@ -281,82 +294,124 @@ function NodeRow({
               setLocName("");
               setLocCode("");
             }}
-            className="rounded-md bg-neutral-900 px-3 py-1 text-xs text-white disabled:opacity-40"
+            className="rounded bg-neutral-900 px-2.5 py-1 text-xs text-white disabled:opacity-40"
           >
             Generate QR
+          </button>
+          <button onClick={() => setAddingLocation(false)} className="text-xs text-neutral-500">
+            Cancel
           </button>
         </div>
       )}
 
-      {expanded && hasChildren && (
-        <div className="mt-2">
-          <TreeLevel
-            parentId={node.id}
+      {expanded &&
+        children.map((child) => (
+          <TreeRow
+            key={child.id}
+            node={child}
+            depth={depth + 1}
             nodeTypes={nodeTypes}
             childrenOf={childrenOf}
-            typeName={typeName}
             locationOf={locationOf}
             pending={pending}
             run={run}
-            depth={depth + 1}
           />
-        </div>
-      )}
-      {expanded && !hasChildren && !loc && (
-        <div className="mt-2">
-          <TreeLevel
-            parentId={node.id}
-            nodeTypes={nodeTypes}
-            childrenOf={childrenOf}
-            typeName={typeName}
-            locationOf={locationOf}
-            pending={pending}
-            run={run}
-            depth={depth + 1}
-          />
-        </div>
-      )}
+        ))}
     </div>
   );
 }
 
-function AddNodeForm({
+function AddNodeInline({
   nodeTypes,
+  suggested,
   pending,
   onSubmit,
   onCancel,
 }: {
   nodeTypes: NodeType[];
+  suggested: NodeType[];
   pending: boolean;
   onSubmit: (typeId: string, name: string) => void;
   onCancel: () => void;
 }) {
-  const [typeId, setTypeId] = useState(nodeTypes[0]?.id ?? "");
+  const [showAll, setShowAll] = useState(suggested.length === 0);
+  const [typeId, setTypeId] = useState(suggested[0]?.id ?? nodeTypes[0]?.id ?? "");
   const [name, setName] = useState("");
+  const [newTypeMode, setNewTypeMode] = useState(false);
+  const [newTypeName, setNewTypeName] = useState("");
+  const [creatingType, startCreatingType] = useTransition();
+
+  const list = showAll ? nodeTypes : suggested;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md bg-neutral-50 p-2">
-      <select
-        value={typeId}
-        onChange={(e) => setTypeId(e.target.value)}
-        className="rounded-md border border-neutral-300 px-2 py-1 text-xs"
-      >
-        {nodeTypes.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.name}
-          </option>
-        ))}
-      </select>
+    <div className="flex flex-wrap items-center gap-1.5 rounded-md bg-neutral-50 p-1.5">
+      {!newTypeMode ? (
+        <>
+          <select
+            value={typeId}
+            onChange={(e) => setTypeId(e.target.value)}
+            className="rounded border border-neutral-300 px-1.5 py-1 text-xs"
+          >
+            {list.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+          {suggested.length > 0 && (
+            <button
+              onClick={() => setShowAll((v) => !v)}
+              className="text-[10px] text-neutral-500 underline"
+            >
+              {showAll ? "suggested only" : "show all types"}
+            </button>
+          )}
+          <button
+            onClick={() => setNewTypeMode(true)}
+            className="text-[10px] text-neutral-500 underline"
+          >
+            + new type
+          </button>
+        </>
+      ) : (
+        <>
+          <input
+            autoFocus
+            value={newTypeName}
+            onChange={(e) => setNewTypeName(e.target.value)}
+            placeholder="New type name"
+            className="rounded border border-neutral-300 px-1.5 py-1 text-xs"
+          />
+          <button
+            disabled={creatingType || !newTypeName.trim()}
+            onClick={() => {
+              const n = newTypeName;
+              startCreatingType(async () => {
+                await createNodeType(n);
+                setNewTypeMode(false);
+                setNewTypeName("");
+              });
+            }}
+            className="rounded bg-neutral-900 px-2 py-1 text-[10px] text-white"
+          >
+            Add
+          </button>
+          <button onClick={() => setNewTypeMode(false)} className="text-[10px] text-neutral-500">
+            <X size={12} />
+          </button>
+        </>
+      )}
+
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Name"
-        className="rounded-md border border-neutral-300 px-2 py-1 text-xs"
+        className="rounded border border-neutral-300 px-2 py-1 text-xs"
       />
       <button
         disabled={pending || !name.trim() || !typeId}
         onClick={() => onSubmit(typeId, name)}
-        className="rounded-md bg-neutral-900 px-3 py-1 text-xs text-white disabled:opacity-40"
+        className="rounded bg-neutral-900 px-2.5 py-1 text-xs text-white disabled:opacity-40"
       >
         Add
       </button>
