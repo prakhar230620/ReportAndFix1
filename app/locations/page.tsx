@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import QRScanButton from "./QRScanButton";
 
 export default async function LocationsPickerPage() {
   const supabase = await createClient();
@@ -26,8 +27,16 @@ export default async function LocationsPickerPage() {
     <main className="mx-auto flex min-h-screen max-w-sm flex-col gap-4 px-6 py-10">
       <h1 className="text-xl font-semibold">Report an issue</h1>
       <p className="text-sm text-neutral-600">
-        Normally you&apos;d scan a QR code at the location. No QR handy? Pick it here.
+        Scan the QR code at the location, or pick it from the list below.
       </p>
+
+      <QRScanButton />
+
+      <div className="my-1 flex items-center gap-3 text-xs text-neutral-400">
+        <div className="h-px flex-1 bg-neutral-200" />
+        OR PICK MANUALLY
+        <div className="h-px flex-1 bg-neutral-200" />
+      </div>
 
       <div className="flex flex-col gap-2">
         {(locations ?? []).map((loc) => {

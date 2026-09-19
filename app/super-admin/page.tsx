@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import CollegeRow from "./CollegeRow";
+import AddCollegeForm from "./AddCollegeForm";
 
 export default async function SuperAdminPage() {
   const supabase = await createClient();
@@ -43,6 +44,7 @@ export default async function SuperAdminPage() {
       </div>
 
       <div className="flex flex-col gap-2">
+        <AddCollegeForm />
         {overview.colleges.map((c) => (
           <CollegeRow key={c.id} college={c} />
         ))}

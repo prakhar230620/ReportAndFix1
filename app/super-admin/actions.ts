@@ -14,3 +14,17 @@ export async function setCollegeStatus(collegeId: string, status: "active" | "su
   revalidatePath("/super-admin");
   return { ok: true };
 }
+
+export async function createCollege(formData: FormData) {
+  const name = String(formData.get("name") ?? "").trim();
+  const category = String(formData.get("category") ?? "college");
+
+  if (!name) return { error: "Name is required" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("colleges").insert({ name, category });
+
+  if (error) return { error: error.message };
+  revalidatePath("/super-admin");
+  return { ok: true };
+}
