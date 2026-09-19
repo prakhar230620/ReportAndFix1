@@ -3,138 +3,157 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function createBuilding(formData: FormData) {
-  const supabase = await createClient();
+function code(name: string) {
+  return (
+    name
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "")
+      .slice(0, 12) +
+    "-" +
+    Math.random().toString(36).slice(2, 5).toUpperCase()
+  );
+}
+
+async function me(supabase: Awaited<ReturnType<typeof createClient>>) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("college_id")
+    .select("id, college_id, role")
     .eq("id", user!.id)
     .single();
-
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name || !profile?.college_id) return;
-
-  const { error } = await supabase
-    .from("buildings")
-    .insert({ college_id: profile.college_id, name });
-
-  if (error) throw new Error(error.message);
-  revalidatePath("/admin/locations");
+  return profile;
 }
 
-export async function createFloor(formData: FormData) {
+export async function createLocation(parentId: string | null, name: string, description: string) {
   const supabase = await createClient();
-  const buildingId = String(formData.get("building_id") ?? "");
-  const label = String(formData.get("label") ?? "").trim();
-  if (!buildingId || !label) return;
-
-  const { error } = await supabase
-    .from("floors")
-    .insert({ building_id: buildingId, label });
-
-  if (error) throw new Error(error.message);
-  revalidatePath("/admin/locations");
-}
-
-export async function createLocation(formData: FormData) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("college_id")
-    .eq("id", user!.id)
-    .single();
-
-  const buildingId = String(formData.get("building_id") ?? "") || null;
-  const floorId = String(formData.get("floor_id") ?? "") || null;
-  const name = String(formData.get("name") ?? "").trim();
-  const locationCode = String(formData.get("location_code") ?? "").trim() || null;
-  const locationType = String(formData.get("location_type") ?? "other");
-
-  if (!name || !profile?.college_id) return;
+  const profile = await me(supabase);
+  if (!profile?.college_id) return { error: "No college context" };
+  if (!name.trim()) return { error: "Name is required" };
 
   const { error } = await supabase.from("locations").insert({
     college_id: profile.college_id,
-    building_id: buildingId,
-    floor_id: floorId,
-    name,
-    location_code: locationCode,
-    location_type: locationType,
+    parent_id: parentId,
+    name: name.trim(),
+    description: description.trim() || null,
+    created_by: profile.id,
   });
 
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
   revalidatePath("/admin/locations");
+  return { ok: true };
 }
 
-export async function updateBuilding(buildingId: string, name: string) {
+export async function updateLocation(id: string, name: string, description: string) {
   const supabase = await createClient();
-  const { error } = await supabase.from("buildings").update({ name }).eq("id", buildingId);
-  if (error) throw new Error(error.message);
+  if (!name.trim()) return { error: "Name is required" };
+  const { error } = await supabase
+    .from("locations")
+    .update({ name: name.trim(), description: description.trim() || null })
+    .eq("id", id);
+  if (error) return { error: error.message };
   revalidatePath("/admin/locations");
+  return { ok: true };
 }
 
-export async function deleteBuilding(buildingId: string) {
+export async function assignQr(id: string) {
   const supabase = await createClient();
-  const { error } = await supabase.from("buildings").delete().eq("id", buildingId);
-  if (error) throw new Error(error.message);
+  const { data: loc } = await supabase.from("locations").select("name").eq("id", id).single();
+  const { error } = await supabase
+    .from("locations")
+    .update({ qr_token: crypto.randomUUID(), location_code: code(loc?.name ?? "LOC") })
+    .eq("id", id);
+  if (error) return { error: error.message };
   revalidatePath("/admin/locations");
+  return { ok: true };
 }
 
-export async function updateFloor(floorId: string, label: string) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("floors").update({ label }).eq("id", floorId);
-  if (error) throw new Error(error.message);
-  revalidatePath("/admin/locations");
-}
-
-export async function deleteFloor(floorId: string) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("floors").delete().eq("id", floorId);
-  if (error) throw new Error(error.message);
-  revalidatePath("/admin/locations");
-}
-
-export async function deleteLocation(locationId: string) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("locations").delete().eq("id", locationId);
-
-  if (error) throw new Error(error.message);
-  revalidatePath("/admin/locations");
-}
-
-export async function setLocationActive(locationId: string, active: boolean) {
+export async function removeQr(id: string) {
   const supabase = await createClient();
   const { error } = await supabase
     .from("locations")
-    .update({ active })
-    .eq("id", locationId);
-
-  if (error) throw new Error(error.message);
+    .update({ qr_token: null, location_code: null })
+    .eq("id", id);
+  if (error) return { error: error.message };
   revalidatePath("/admin/locations");
+  return { ok: true };
 }
 
-export async function regenerateQrToken(locationId: string) {
+export async function regenerateQr(id: string) {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("regenerate_location_qr_token" as never, {
-    p_location_id: locationId,
-  } as never);
-
-  if (error) throw new Error(error.message);
+  const { error } = await supabase
+    .from("locations")
+    .update({ qr_token: crypto.randomUUID() })
+    .eq("id", id)
+    .not("qr_token", "is", null);
+  if (error) return { error: error.message };
   revalidatePath("/admin/locations");
+  return { ok: true };
 }
 
-export async function reassignQr(qrToken: string, newLocationId: string) {
+export async function setReportingEnabled(id: string, active: boolean) {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("reassign_location_qr" as never, {
-    p_qr_token: qrToken,
-    p_new_location_id: newLocationId,
-  } as never);
-
-  if (error) throw new Error(error.message);
+  const { error } = await supabase.from("locations").update({ active }).eq("id", id);
+  if (error) return { error: error.message };
   revalidatePath("/admin/locations");
+  return { ok: true };
+}
+
+export async function moveLocation(id: string, newParentId: string | null) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("locations")
+    .update({ parent_id: newParentId })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/locations");
+  return { ok: true };
+}
+
+export async function archiveLocation(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("locations")
+    .update({ archived: true, archived_at: new Date().toISOString(), active: false })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/locations");
+  return { ok: true };
+}
+
+export async function unarchiveLocation(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("locations")
+    .update({ archived: false, archived_at: null })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/locations");
+  return { ok: true };
+}
+
+export async function deleteLocation(id: string) {
+  const supabase = await createClient();
+
+  const [{ count: childCount }, { count: complaintCount }] = await Promise.all([
+    supabase.from("locations").select("id", { count: "exact", head: true }).eq("parent_id", id),
+    supabase.from("complaints").select("id", { count: "exact", head: true }).eq("location_id", id),
+  ]);
+
+  if ((childCount ?? 0) > 0) {
+    return { error: "This location still has sub-locations. Move or remove them first." };
+  }
+  if ((complaintCount ?? 0) > 0) {
+    return {
+      error:
+        "This location has complaint history — archive it instead of deleting, to keep records intact.",
+    };
+  }
+
+  const { error } = await supabase.from("locations").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/locations");
+  return { ok: true };
 }

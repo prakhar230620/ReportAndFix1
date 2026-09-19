@@ -20,7 +20,10 @@ export default async function RoleRequestsPage() {
       <div className="rounded-md border border-neutral-200 p-4 text-sm text-neutral-600">
         Super Admin approves College Admin requests (after all current admins
         endorse) from the{" "}
-        <a href="/super-admin/admin-requests" className="underline">
+        <a
+          href="/super-admin/admin-requests"
+          className="font-medium text-blue-600 hover:text-blue-700"
+        >
           Super Admin → Admin Requests
         </a>{" "}
         page.

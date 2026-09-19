@@ -157,7 +157,7 @@ export default function ReportForm({
           Your complaint ID is <span className="font-mono">{step.publicId}</span>.
         </p>
         <p className="text-sm text-neutral-500">
-          <a href={`/issues/${step.publicId}`} className="underline">View it on the public feed</a>
+          <a href={`/issues/${step.publicId}`} className="font-medium text-blue-600 hover:text-blue-700">View it on the public feed</a>
         </p>
       </Center>
     );

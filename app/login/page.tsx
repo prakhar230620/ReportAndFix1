@@ -76,12 +76,12 @@ export default async function LoginPage({
       </form>
 
       <p className="mt-4 text-sm text-neutral-600">
-        <a href="/forgot-password" className="underline">Forgot password?</a>
+        <a href="/forgot-password" className="font-medium text-blue-600 hover:text-blue-700">Forgot password?</a>
       </p>
 
       <p className="mt-2 text-sm text-neutral-600">
         Don&apos;t have an account?{" "}
-        <a href={`/signup?next=${encodeURIComponent(next ?? "/")}`} className="underline">
+        <a href={`/signup?next=${encodeURIComponent(next ?? "/")}`} className="font-medium text-blue-600 hover:text-blue-700">
           Sign up
         </a>
       </p>

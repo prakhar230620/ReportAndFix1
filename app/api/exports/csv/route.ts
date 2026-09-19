@@ -28,7 +28,7 @@ export async function POST() {
   const { data: complaints, error } = await supabase
     .from("complaints")
     .select(
-      "public_id, title, status, priority, created_at, completed_at, resolution_seconds, is_anonymous, categories(name), locations(name)"
+      "public_id, title, status, priority, created_at, completed_at, resolution_seconds, is_anonymous, location_id, categories(name), locations(name)"
     )
     .eq("college_id", profile.college_id)
     .order("created_at", { ascending: false });
@@ -39,18 +39,30 @@ export async function POST() {
     "public_id", "title", "category", "location", "status", "priority",
     "created_at", "completed_at", "resolution_hours", "anonymous",
   ];
-  const rows = (complaints ?? []).map((c) => [
-    c.public_id,
-    c.title,
-    (c as any).categories?.name ?? "",
-    (c as any).locations?.name ?? "",
-    c.status,
-    c.priority,
-    c.created_at,
-    c.completed_at ?? "",
-    c.resolution_seconds ? (c.resolution_seconds / 3600).toFixed(1) : "",
-    c.is_anonymous ? "yes" : "no",
-  ]);
+  const rows = await Promise.all(
+    (complaints ?? []).map(async (c) => {
+      const locId = (c as any).location_id as string | undefined;
+      let locationPath = (c as any).locations?.name ?? "";
+      if (locId) {
+        const { data: path } = await supabase.rpc("location_full_path" as never, {
+          p_location_id: locId,
+        } as never);
+        if (path) locationPath = path as unknown as string;
+      }
+      return [
+        c.public_id,
+        c.title,
+        (c as any).categories?.name ?? "",
+        locationPath,
+        c.status,
+        c.priority,
+        c.created_at,
+        c.completed_at ?? "",
+        c.resolution_seconds ? (c.resolution_seconds / 3600).toFixed(1) : "",
+        c.is_anonymous ? "yes" : "no",
+      ];
+    })
+  );
 
   const csv = [header, ...rows].map((r) => r.map(csvEscape).join(",")).join("\n");
   const storagePath = `${profile.college_id}/complaints-export-${Date.now()}.csv`;

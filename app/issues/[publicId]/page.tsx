@@ -16,7 +16,7 @@ export default async function IssueDetailPage({
   const { data: complaint } = await supabase
     .from("complaints")
     .select(
-      "id, public_id, title, description, status, priority, is_anonymous, created_at, completed_at, resolution_seconds, categories(name), locations(name, buildings(name), floors(label))"
+      "id, public_id, title, description, status, priority, is_anonymous, created_at, completed_at, resolution_seconds, location_id, categories(name), locations(name)"
     )
     .eq("public_id", publicId)
     .maybeSingle();
@@ -66,14 +66,10 @@ export default async function IssueDetailPage({
   );
 
   const category = (complaint as any).categories?.name;
-  const location = (complaint as any).locations;
-  const locationSummary = [
-    location?.name,
-    location?.buildings?.name,
-    location?.floors?.label,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const { data: locationPath } = await supabase.rpc("location_full_path" as never, {
+    p_location_id: complaint.location_id,
+  } as never);
+  const locationSummary = (locationPath as unknown as string) ?? (complaint as any).locations?.name ?? "";
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col gap-4 px-6 py-10">

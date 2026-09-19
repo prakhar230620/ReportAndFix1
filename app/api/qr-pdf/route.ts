@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   const { data: locations, error } = await supabase
     .from("locations")
-    .select("id, name, location_code, qr_token, buildings(name), floors(label)")
+    .select("id, name, location_code, qr_token")
     .in("id", location_ids);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
@@ -89,8 +89,10 @@ export async function POST(req: NextRequest) {
 
     page.drawImage(qrImage, { x: qrX, y: qrY, width: qrSize, height: qrSize });
 
-    const buildingName = (loc as any).buildings?.name ?? "";
-    const floorLabel = (loc as any).floors?.label ?? "";
+    const { data: fullPath } = await supabase.rpc("location_full_path" as never, {
+      p_location_id: loc.id,
+    } as never);
+    const pathText = (fullPath as unknown as string) ?? loc.name;
 
     const nameText = loc.name.length > 30 ? loc.name.slice(0, 30) + "…" : loc.name;
     page.drawText(nameText, {
@@ -100,10 +102,13 @@ export async function POST(req: NextRequest) {
       font,
       color: rgb(0, 0, 0),
     });
-    page.drawText(
-      [buildingName, floorLabel].filter(Boolean).join(" · "),
-      { x: cellX + 12, y: cellY + 12, size: 9, font: fontRegular, color: rgb(0.3, 0.3, 0.3) }
-    );
+    page.drawText(pathText.length > 45 ? pathText.slice(0, 45) + "…" : pathText, {
+      x: cellX + 12,
+      y: cellY + 12,
+      size: 9,
+      font: fontRegular,
+      color: rgb(0.3, 0.3, 0.3),
+    });
     if (loc.location_code) {
       page.drawText(loc.location_code, {
         x: cellX + CELL_W - 70,

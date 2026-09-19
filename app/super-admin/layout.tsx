@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import NavBar from "@/app/components/NavBar";
 
 export default async function SuperAdminLayout({
   children,
@@ -25,17 +26,15 @@ export default async function SuperAdminLayout({
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      <header className="border-b border-neutral-200 bg-white px-6 py-4">
-        <nav className="mx-auto flex max-w-4xl items-center justify-between">
-          <span className="font-semibold">Super Admin</span>
-          <div className="flex gap-4">
-            <a href="/super-admin" className="text-sm underline">Overview</a>
-            <a href="/super-admin/admin-requests" className="text-sm underline">Admin Requests</a>
-            <a href="/" className="text-sm underline">Home</a>
-          </div>
-        </nav>
-      </header>
-      <main className="mx-auto max-w-4xl px-6 py-8">{children}</main>
+      <NavBar
+        brand="Super Admin"
+        items={[
+          { href: "/super-admin", label: "Overview" },
+          { href: "/super-admin/admin-requests", label: "Admin Requests" },
+          { href: "/", label: "Home" },
+        ]}
+      />
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">{children}</main>
     </div>
   );
 }

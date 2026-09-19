@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import NavBar from "@/app/components/NavBar";
 
 export default async function WorkerLayout({
   children,
@@ -25,15 +26,8 @@ export default async function WorkerLayout({
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      <header className="border-b border-neutral-200 bg-white px-6 py-4">
-        <nav className="mx-auto flex max-w-2xl items-center justify-between">
-          <span className="font-semibold">My Tasks</span>
-          <a href="/" className="text-sm underline">
-            Home
-          </a>
-        </nav>
-      </header>
-      <main className="mx-auto max-w-2xl px-6 py-8">{children}</main>
+      <NavBar brand="My Tasks" items={[{ href: "/worker", label: "Tasks" }, { href: "/", label: "Home" }]} />
+      <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6">{children}</main>
     </div>
   );
 }

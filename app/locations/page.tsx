@@ -18,10 +18,21 @@ export default async function LocationsPickerPage() {
 
   const { data: locations } = await supabase
     .from("locations")
-    .select("id, name, location_code, qr_token, buildings(name), floors(label)")
+    .select("id, name, location_code, qr_token")
     .eq("college_id", profile?.college_id)
     .eq("active", true)
+    .eq("archived", false)
+    .not("qr_token", "is", null)
     .order("name");
+
+  const withPaths = await Promise.all(
+    (locations ?? []).map(async (loc) => {
+      const { data: path } = await supabase.rpc("location_full_path" as never, {
+        p_location_id: loc.id,
+      } as never);
+      return { ...loc, path: (path as unknown as string) ?? loc.name };
+    })
+  );
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col gap-4 px-6 py-10">
@@ -39,24 +50,17 @@ export default async function LocationsPickerPage() {
       </div>
 
       <div className="flex flex-col gap-2">
-        {(locations ?? []).map((loc) => {
-          const buildingName = (loc as any).buildings?.name;
-          const floorLabel = (loc as any).floors?.label;
-          return (
-            <a
-              key={loc.id}
-              href={`/report/${loc.qr_token}`}
-              className="rounded-md border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50"
-            >
-              <div className="font-medium">{loc.name}</div>
-              <div className="text-neutral-500">
-                {[buildingName, floorLabel].filter(Boolean).join(" · ")}
-                {loc.location_code ? ` · ${loc.location_code}` : ""}
-              </div>
-            </a>
-          );
-        })}
-        {(locations ?? []).length === 0 && (
+        {withPaths.map((loc) => (
+          <a
+            key={loc.id}
+            href={`/report/${loc.qr_token}`}
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50"
+          >
+            <div className="font-medium">{loc.name}</div>
+            <div className="text-neutral-500">{loc.path}</div>
+          </a>
+        ))}
+        {withPaths.length === 0 && (
           <p className="text-neutral-500">
             No locations have been set up for your college yet.
           </p>

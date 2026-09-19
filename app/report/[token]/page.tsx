@@ -11,7 +11,7 @@ export default async function ReportQrPage({
 
   const { data: location } = await supabase
     .from("locations")
-    .select("id, name, location_code, active, college_id, buildings(name), floors(label)")
+    .select("id, name, location_code, active, college_id")
     .eq("qr_token", token)
     .maybeSingle();
 
@@ -41,9 +41,10 @@ export default async function ReportQrPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const buildingName = (location as any).buildings?.name;
-  const floorLabel = (location as any).floors?.label;
-  const locationSummary = [buildingName, floorLabel].filter(Boolean).join(" · ");
+  const { data: fullPath } = await supabase.rpc("location_full_path" as never, {
+    p_location_id: location.id,
+  } as never);
+  const locationSummary = (fullPath as unknown as string) ?? location.name;
 
   if (!user) {
     const next = `/report/${token}`;

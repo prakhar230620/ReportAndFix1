@@ -15,7 +15,10 @@ export default function ShareButton({ path, title }: { path: string; title: stri
   }
 
   return (
-    <button onClick={handleShare} className="text-xs underline">
+    <button
+      onClick={handleShare}
+      className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+    >
       Share
     </button>
   );

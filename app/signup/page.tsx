@@ -123,7 +123,7 @@ export default async function SignupPage({
 
       <p className="mt-4 text-sm text-neutral-600">
         Already have an account?{" "}
-        <a href={`/login?next=${encodeURIComponent(next ?? "/")}`} className="underline">
+        <a href={`/login?next=${encodeURIComponent(next ?? "/")}`} className="font-medium text-blue-600 hover:text-blue-700">
           Log in
         </a>
       </p>

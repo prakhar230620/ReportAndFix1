@@ -15,7 +15,7 @@ export default async function WorkerTaskDetailPage({
   const { data: task } = await supabase
     .from("complaints")
     .select(
-      "id, public_id, title, description, status, priority, categories(name), locations(name, buildings(name), floors(label))"
+      "id, public_id, title, description, status, priority, location_id, categories(name), locations(name)"
     )
     .eq("public_id", publicId)
     .eq("assigned_worker_id", user!.id)
@@ -32,10 +32,10 @@ export default async function WorkerTaskDetailPage({
     .order("created_at", { ascending: true });
 
   const category = (task as any).categories?.name;
-  const location = (task as any).locations;
-  const locationSummary = [location?.name, location?.buildings?.name, location?.floors?.label]
-    .filter(Boolean)
-    .join(" · ");
+  const { data: locationPath } = await supabase.rpc("location_full_path" as never, {
+    p_location_id: task.location_id,
+  } as never);
+  const locationSummary = (locationPath as unknown as string) ?? (task as any).locations?.name ?? "";
 
   return (
     <div className="flex flex-col gap-4">

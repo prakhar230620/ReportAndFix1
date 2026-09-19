@@ -39,7 +39,12 @@ export default function ExportPage() {
       {result && (
         <div className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
           {result.row_count} rows.{" "}
-          <a href={result.url} className="underline" target="_blank" rel="noreferrer">
+          <a
+            href={result.url}
+            className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+            target="_blank"
+            rel="noreferrer"
+          >
             Download (link expires in 1 hour)
           </a>
         </div>

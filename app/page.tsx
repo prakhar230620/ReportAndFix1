@@ -34,40 +34,44 @@ export default async function HomePage() {
   const isWorker = profile?.role === "worker";
   const isSuperAdmin = profile?.role === "super_admin";
 
+  const links: { href: string; label: string; sub: string }[] = [];
+  if (isAdmin) links.push({ href: "/admin/locations", label: "Locations & QR", sub: "Manage campus structure" });
+  if (isAdmin) links.push({ href: "/admin/queue", label: "Complaint Queue", sub: "Assign and verify" });
+  if (isSuperAdmin) links.push({ href: "/super-admin", label: "Super Admin", sub: "Manage institutions" });
+  if (isWorker) links.push({ href: "/worker", label: "My Tasks", sub: "Assigned work" });
+  links.push({ href: "/locations", label: "Report an issue", sub: "Scan a QR or pick a location" });
+  links.push({ href: "/feed", label: "Campus feed", sub: "Open and completed issues" });
+  links.push({ href: "/profile", label: "Profile", sub: "Account settings" });
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center gap-2 px-6 text-center">
-      <h1 className="text-2xl font-semibold">
-        Welcome, {profile?.display_name ?? user.email}
-      </h1>
-      <p className="text-neutral-600">
-        Role: {profile?.role} · College: {(profile?.colleges as any)?.name}
-      </p>
-      {isAdmin && (
-        <a href="/admin/locations" className="mt-2 text-sm underline">
-          Admin: Locations & QR
-        </a>
-      )}
-      {isSuperAdmin && (
-        <a href="/super-admin" className="text-sm underline">
-          Super Admin
-        </a>
-      )}
-      {isWorker && (
-        <a href="/worker" className="text-sm underline">
-          My Tasks
-        </a>
-      )}
-      <a href="/locations" className="text-sm underline">
-        Report an issue
-      </a>
-      <a href="/feed" className="text-sm underline">
-        View campus feed
-      </a>
-      <a href="/profile" className="text-sm underline">
-        Profile
-      </a>
-      <form action={logout} className="mt-4">
-        <button className="rounded-md border border-neutral-300 px-4 py-2">
+    <main className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
+      <div>
+        <h1 className="text-2xl font-semibold text-neutral-900">
+          Welcome, {profile?.display_name ?? user.email}
+        </h1>
+        <p className="text-sm text-neutral-500">
+          {profile?.role} · {(profile?.colleges as any)?.name}
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {links.map((l) => (
+          <a
+            key={l.href}
+            href={l.href}
+            className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 shadow-sm transition-colors hover:border-neutral-300 hover:bg-neutral-50"
+          >
+            <div>
+              <div className="font-medium text-neutral-900">{l.label}</div>
+              <div className="text-xs text-neutral-500">{l.sub}</div>
+            </div>
+            <span className="text-neutral-300">→</span>
+          </a>
+        ))}
+      </div>
+
+      <form action={logout}>
+        <button className="w-full rounded-md border border-neutral-300 px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-50">
           Log out
         </button>
       </form>

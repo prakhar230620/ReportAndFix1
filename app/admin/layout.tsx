@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import NavBar from "@/app/components/NavBar";
 
 export default async function AdminLayout({
   children,
@@ -25,35 +26,18 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      <header className="border-b border-neutral-200 bg-white px-6 py-4">
-        <nav className="mx-auto flex max-w-4xl items-center justify-between">
-          <span className="font-semibold">ReportAndFix Admin</span>
-          <div className="flex gap-4">
-            <a href="/" className="text-sm underline">
-              Home
-            </a>
-            <a href="/admin/queue" className="text-sm underline">
-              Queue
-            </a>
-            <a href="/admin/role-requests" className="text-sm underline">
-              Role Requests
-            </a>
-            <a href="/admin/locations" className="text-sm underline">
-              Locations & QR
-            </a>
-            <a href="/admin/campus" className="text-sm underline">
-              Campus Map
-            </a>
-            <a href="/admin/analytics" className="text-sm underline">
-              Analytics
-            </a>
-            <a href="/admin/export" className="text-sm underline">
-              Export
-            </a>
-          </div>
-        </nav>
-      </header>
-      <main className="mx-auto max-w-4xl px-6 py-8">{children}</main>
+      <NavBar
+        brand="ReportAndFix Admin"
+        items={[
+          { href: "/", label: "Home" },
+          { href: "/admin/queue", label: "Queue" },
+          { href: "/admin/role-requests", label: "Role Requests" },
+          { href: "/admin/locations", label: "Locations" },
+          { href: "/admin/analytics", label: "Analytics" },
+          { href: "/admin/export", label: "Export" },
+        ]}
+      />
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">{children}</main>
     </div>
   );
 }

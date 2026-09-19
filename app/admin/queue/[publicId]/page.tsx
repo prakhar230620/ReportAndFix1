@@ -23,7 +23,7 @@ export default async function AdminComplaintDetailPage({
   const { data: complaint } = await supabase
     .from("complaints")
     .select(
-      "id, public_id, title, description, status, priority, is_anonymous, created_at, completed_at, resolution_seconds, assigned_worker_id, assigned_department_id, categories(name), locations(name, buildings(name), floors(label))"
+      "id, public_id, title, description, status, priority, is_anonymous, created_at, completed_at, resolution_seconds, assigned_worker_id, assigned_department_id, location_id, categories(name), locations(name)"
     )
     .eq("public_id", publicId)
     .eq("college_id", collegeId)
@@ -98,16 +98,16 @@ export default async function AdminComplaintDetailPage({
   const afterUrl = mediaWithUrls.find((m) => m.media_type === "after")?.url;
 
   const category = (complaint as any).categories?.name;
-  const location = (complaint as any).locations;
-  const locationSummary = [location?.name, location?.buildings?.name, location?.floors?.label]
-    .filter(Boolean)
-    .join(" · ");
+  const { data: locationPath } = await supabase.rpc("location_full_path" as never, {
+    p_location_id: complaint.location_id,
+  } as never);
+  const locationSummary = (locationPath as unknown as string) ?? (complaint as any).locations?.name ?? "";
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between text-xs text-neutral-500">
         <span>{complaint.public_id}</span>
-        <a href={`/issues/${complaint.public_id}`} className="underline">
+        <a href={`/issues/${complaint.public_id}`} className="font-medium text-blue-600 hover:text-blue-700">
           View public page
         </a>
       </div>
