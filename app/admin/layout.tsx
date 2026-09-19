@@ -42,7 +42,7 @@ export default async function AdminLayout({
               Locations & QR
             </a>
             <a href="/admin/campus" className="text-sm underline">
-              Campus
+              Campus Map
             </a>
             <a href="/admin/analytics" className="text-sm underline">
               Analytics

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import CampusTree from "./CampusTree";
+import CampusTreeView from "./CampusTreeView";
 
 export default async function CampusPage() {
   const supabase = await createClient();
@@ -24,21 +24,25 @@ export default async function CampusPage() {
       .order("name"),
     supabase
       .from("locations")
-      .select("id, node_id, name, location_code, qr_token, active")
+      .select("id, node_id, qr_token, active")
       .eq("college_id", collegeId!)
       .not("node_id", "is", null),
   ]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-semibold">Campus structure</h1>
+        <h1 className="text-xl font-semibold">Campus map</h1>
         <p className="text-sm text-neutral-600">
-          Build your institution&apos;s layout — campuses, buildings, floors, rooms,
-          labs, anything — exactly how it really looks.
+          A read-only view of your institution&apos;s structure. To add or
+          change anything, go to{" "}
+          <a href="/admin/locations" className="underline">
+            Locations &amp; QR
+          </a>
+          .
         </p>
       </div>
-      <CampusTree
+      <CampusTreeView
         nodeTypes={nodeTypes ?? []}
         nodes={nodes ?? []}
         locations={locations ?? []}
@@ -46,3 +50,4 @@ export default async function CampusPage() {
     </div>
   );
 }
+
