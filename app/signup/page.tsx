@@ -40,7 +40,7 @@ export default async function SignupPage({
 
         <CollegeRoleFields
           colleges={colleges ?? []}
-          approvalNote="Worker and College Admin access requires approval after signup."
+          approvalNote="Worker and Admin access requires approval after signup."
         />
 
         <label className="flex flex-col gap-1 text-sm">

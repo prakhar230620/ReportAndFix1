@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import BackButton from "@/app/components/BackButton";
+import { roleLabel } from "@/lib/roleLabel";
 import ProfileForm from "./ProfileForm";
 
 export default async function ProfilePage() {
@@ -28,7 +29,7 @@ export default async function ProfilePage() {
       <div className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600">
         <div>{user.email}</div>
         <div>
-          {profile?.role} · {(profile?.colleges as any)?.name}
+          {roleLabel(profile?.role)} · {(profile?.colleges as any)?.name}
         </div>
       </div>
 

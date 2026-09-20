@@ -36,7 +36,7 @@ export default function AdminRequestsClient({
   return (
     <div className="flex flex-col gap-8">
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Pending College Admin requests</h2>
+        <h2 className="mb-3 text-lg font-semibold">Pending Admin requests</h2>
         {requests.length === 0 && (
           <p className="text-sm text-neutral-500">Nothing pending.</p>
         )}

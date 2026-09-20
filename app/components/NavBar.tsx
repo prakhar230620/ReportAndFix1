@@ -8,7 +8,7 @@ export default function NavBar({
   items,
 }: {
   brand: string;
-  items: { href: string; label: string }[];
+  items: { href: string; label: string; badge?: number }[];
 }) {
   const pathname = usePathname();
 
@@ -27,13 +27,18 @@ export default function NavBar({
               <a
                 key={item.href}
                 href={item.href}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`relative rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                   active
                     ? "bg-neutral-900 text-white"
                     : "text-neutral-600 hover:bg-neutral-100"
                 }`}
               >
                 {item.label}
+                {!!item.badge && (
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                    {item.badge}
+                  </span>
+                )}
               </a>
             );
           })}

@@ -37,7 +37,7 @@ export default async function OnboardingPage({
       <BackButton className="mb-4" />
       <h1 className="mb-2 text-2xl font-semibold">One last step</h1>
       <p className="mb-6 text-sm text-neutral-600">
-        Tell us your college and how you&apos;ll use ReportAndFix.
+        Tell us your organisation and how you&apos;ll use ReportAndFix.
       </p>
 
       {error && (

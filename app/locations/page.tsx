@@ -64,7 +64,7 @@ export default async function LocationsPickerPage() {
         ))}
         {withPaths.length === 0 && (
           <p className="text-neutral-500">
-            No locations have been set up for your college yet.
+            No locations have been set up for your organisation yet.
           </p>
         )}
       </div>

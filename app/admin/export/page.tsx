@@ -25,7 +25,7 @@ export default function ExportPage() {
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">Export</h1>
       <p className="text-sm text-neutral-600">
-        Generates a real CSV of your college&apos;s complaints, stored privately with a
+        Generates a real CSV of your organisation&apos;s complaints, stored privately with a
         1-hour signed download link.
       </p>
       {error && <p className="text-sm text-red-600">{error}</p>}

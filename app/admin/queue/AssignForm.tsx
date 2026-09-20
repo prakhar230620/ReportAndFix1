@@ -41,7 +41,7 @@ export default function AssignForm({
         onChange={(e) => setWorkerId(e.target.value)}
         className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
       >
-        {workers.length === 0 && <option value="">No workers in this college</option>}
+        {workers.length === 0 && <option value="">No workers in this organisation</option>}
         {workers.map((w) => (
           <option key={w.id} value={w.id}>{w.display_name ?? w.id}</option>
         ))}

@@ -13,7 +13,7 @@ export default function CollegeRoleFields({
   colleges,
   defaultCollegeId = "",
   defaultRole = "user",
-  approvalNote = "Worker and College Admin access requires approval after you continue.",
+  approvalNote = "Worker and Admin access requires approval after you continue.",
 }: {
   colleges: College[];
   defaultCollegeId?: string;
@@ -39,7 +39,7 @@ export default function CollegeRoleFields({
   return (
     <>
       <label className="flex flex-col gap-1 text-sm">
-        College
+        Organisation
         <select
           name="college_id"
           required
@@ -47,7 +47,7 @@ export default function CollegeRoleFields({
           onChange={(e) => setCollegeId(e.target.value)}
           className="rounded-md border border-neutral-300 px-3 py-2"
         >
-          <option value="">Select your college</option>
+          <option value="">Select your organisation</option>
           {colleges.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -58,7 +58,7 @@ export default function CollegeRoleFields({
 
       {!collegeId ? (
         <p className="text-xs text-neutral-400">
-          Select a college first to see which roles are available.
+          Select an organisation first to see which roles are available.
         </p>
       ) : (
         <fieldset className="flex flex-col gap-2 text-sm">
@@ -94,14 +94,14 @@ export default function CollegeRoleFields({
                 checked={role === "college_admin"}
                 onChange={() => setRole("college_admin")}
               />
-              College Admin
+              Admin
             </label>
           )}
           {canWorker || canAdmin ? (
             <p className="text-xs text-neutral-500">{approvalNote}</p>
           ) : (
             <p className="text-xs text-neutral-500">
-              This college is only accepting student / general user sign-ups right now.
+              This organisation is only accepting student / general user sign-ups right now.
             </p>
           )}
         </fieldset>

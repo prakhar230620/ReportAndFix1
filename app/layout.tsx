@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "ReportAndFix",
-  description: "Scan. Report. Fix. Campus issue reporting.",
+  description: "Scan. Report. Fix. Issue reporting for any organisation.",
 };
 
 export default function RootLayout({

@@ -24,6 +24,16 @@ export default async function AdminLayout({
     redirect("/");
   }
 
+  let pendingCount = 0;
+  if (profile.role === "college_admin" && profile.college_id) {
+    const { count } = await supabase
+      .from("role_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("college_id", profile.college_id)
+      .eq("status", "pending");
+    pendingCount = count ?? 0;
+  }
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <NavBar
@@ -31,7 +41,7 @@ export default async function AdminLayout({
         items={[
           { href: "/", label: "Home" },
           { href: "/admin/queue", label: "Queue" },
-          { href: "/admin/role-requests", label: "Role Requests" },
+          { href: "/admin/role-requests", label: "Role Requests", badge: pendingCount },
           { href: "/admin/locations", label: "Locations" },
           { href: "/admin/analytics", label: "Analytics" },
           { href: "/admin/export", label: "Export" },

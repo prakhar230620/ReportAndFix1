@@ -157,7 +157,7 @@ export default function LocationExplorer({
         <div>
           <h1 className="text-xl font-semibold text-neutral-900">Locations</h1>
           <p className="text-sm text-neutral-500">
-            Manage your campus structure, assign QR codes, and organise easily.
+            Manage your organisation's structure, assign QR codes, and organise easily.
           </p>
         </div>
         <a

@@ -46,7 +46,7 @@ export default async function FeedPage({
     } else {
       return (
         <main className="mx-auto flex min-h-screen max-w-sm flex-col gap-3 px-6 py-10">
-          <h1 className="text-xl font-semibold">Choose a campus</h1>
+          <h1 className="text-xl font-semibold">Choose an organisation</h1>
           {(colleges ?? []).map((c) => (
             <a
               key={c.id}

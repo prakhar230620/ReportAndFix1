@@ -87,7 +87,7 @@ export default function RoleRequestsClient({
       </section>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold">College Admin requests</h2>
+        <h2 className="mb-3 text-lg font-semibold">Admin requests</h2>
         <p className="mb-3 text-xs text-neutral-500">
           Every current admin ({adminCountNeeded}) must endorse before Super
           Admin can grant the role.

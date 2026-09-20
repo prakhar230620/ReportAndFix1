@@ -34,7 +34,7 @@ export default async function ReportQrPage({
         <BackButton className="self-start" />
         <h1 className="text-xl font-semibold">This QR is no longer active</h1>
         <p className="text-neutral-600">
-          Please contact your campus admin if you believe this is a mistake.
+          Please contact your organisation admin if you believe this is a mistake.
         </p>
       </main>
     );
@@ -85,10 +85,10 @@ export default async function ReportQrPage({
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center gap-2 px-6 text-center">
         <BackButton className="self-start" />
-        <h1 className="text-xl font-semibold">Wrong college account</h1>
+        <h1 className="text-xl font-semibold">Wrong organisation account</h1>
         <p className="text-neutral-600">
-          Your account belongs to a different college than this location. Log in with
-          the account you used to sign up for this campus.
+          Your account belongs to a different organisation than this location. Log in with
+          the account you used to sign up for this organisation.
         </p>
       </main>
     );

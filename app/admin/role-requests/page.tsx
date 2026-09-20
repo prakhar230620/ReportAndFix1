@@ -18,7 +18,7 @@ export default async function RoleRequestsPage() {
   if (profile.role === "super_admin") {
     return (
       <div className="rounded-md border border-neutral-200 p-4 text-sm text-neutral-600">
-        Super Admin approves College Admin requests (after all current admins
+        Super Admin approves Admin requests (after all current admins
         endorse) from the{" "}
         <a
           href="/super-admin/admin-requests"

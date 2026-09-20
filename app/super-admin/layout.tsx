@@ -24,13 +24,19 @@ export default async function SuperAdminLayout({
     redirect("/");
   }
 
+  const { count: pendingCount } = await supabase
+    .from("role_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("requested_role", "college_admin")
+    .eq("status", "pending");
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <NavBar
         brand="Super Admin"
         items={[
           { href: "/super-admin", label: "Overview" },
-          { href: "/super-admin/admin-requests", label: "Admin Requests" },
+          { href: "/super-admin/admin-requests", label: "Admin Requests", badge: pendingCount ?? 0 },
           { href: "/", label: "Home" },
         ]}
       />
