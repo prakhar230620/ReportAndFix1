@@ -1,8 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+
 import QrSheetClient from "./QrSheetClient";
 
 export default async function QrSheetPage() {
   const supabase = await createClient();
+
+  const { data: gProfile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", (await supabase.auth.getUser()).data.user!.id)
+    .single();
+  if (gProfile?.role === "super_admin") redirect("/super-admin");
+
   const {
     data: { user },
   } = await supabase.auth.getUser();

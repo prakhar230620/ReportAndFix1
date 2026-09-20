@@ -1,10 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+
 import AnalyticsCharts from "./AnalyticsCharts";
 
 export const maxDuration = 30;
 
 export default async function AnalyticsPage() {
   const supabase = await createClient();
+
+  const { data: gProfile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", (await supabase.auth.getUser()).data.user!.id)
+    .single();
+  if (gProfile?.role === "super_admin") redirect("/super-admin");
+
   const {
     data: { user },
   } = await supabase.auth.getUser();

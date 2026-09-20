@@ -9,7 +9,7 @@ function csvEscape(value: unknown): string {
   return s;
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -25,17 +25,32 @@ export async function POST() {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  const { data: complaints, error } = await supabase
+  let body: { college_id?: string } = {};
+  try {
+    body = await req.json();
+  } catch {
+    // no body sent -- fine, defaults below apply
+  }
+
+  // college_admin is always scoped to their own college. super_admin may
+  // pick one college, or omit it entirely to export across all colleges.
+  const targetCollegeId = profile.role === "college_admin" ? profile.college_id : body.college_id;
+
+  let query = supabase
     .from("complaints")
     .select(
-      "public_id, title, status, priority, created_at, completed_at, resolution_seconds, is_anonymous, location_id, categories(name), locations(name)"
+      "public_id, title, status, priority, created_at, completed_at, resolution_seconds, is_anonymous, location_id, college_id, categories(name), locations(name), colleges(name)"
     )
-    .eq("college_id", profile.college_id)
     .order("created_at", { ascending: false });
+  if (targetCollegeId) query = query.eq("college_id", targetCollegeId);
+
+  const { data: complaints, error } = await query;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
+  const includeOrgColumn = profile.role === "super_admin" && !targetCollegeId;
   const header = [
+    ...(includeOrgColumn ? ["organisation"] : []),
     "public_id", "title", "category", "location", "status", "priority",
     "created_at", "completed_at", "resolution_hours", "anonymous",
   ];
@@ -50,6 +65,7 @@ export async function POST() {
         if (path) locationPath = path as unknown as string;
       }
       return [
+        ...(includeOrgColumn ? [(c as any).colleges?.name ?? ""] : []),
         c.public_id,
         c.title,
         (c as any).categories?.name ?? "",
@@ -65,7 +81,7 @@ export async function POST() {
   );
 
   const csv = [header, ...rows].map((r) => r.map(csvEscape).join(",")).join("\n");
-  const storagePath = `${profile.college_id}/complaints-export-${Date.now()}.csv`;
+  const storagePath = `${targetCollegeId ?? "all"}/complaints-export-${Date.now()}.csv`;
 
   const { error: uploadError } = await supabase.storage
     .from("exports")

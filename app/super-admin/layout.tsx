@@ -37,6 +37,8 @@ export default async function SuperAdminLayout({
         items={[
           { href: "/super-admin", label: "Overview" },
           { href: "/super-admin/admin-requests", label: "Admin Requests", badge: pendingCount ?? 0 },
+          { href: "/super-admin/analytics", label: "Analytics" },
+          { href: "/super-admin/export", label: "Export" },
           { href: "/", label: "Home" },
         ]}
       />

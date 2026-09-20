@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   approveWorker,
   rejectRequest,
@@ -31,6 +31,7 @@ export default function RoleRequestsClient({
   myApprovedIds: string[];
 }) {
   const [pending, startTransition] = useTransition();
+  const [allowWorker, setAllowWorker] = useState(college.allow_worker_signup);
   const approved = new Set(myApprovedIds);
 
   function handle(fn: () => Promise<{ error?: string; ok?: boolean }>) {
@@ -49,9 +50,13 @@ export default function RoleRequestsClient({
             Allow new worker signups
             <input
               type="checkbox"
-              defaultChecked={college.allow_worker_signup}
+              checked={allowWorker}
               disabled={pending}
-              onChange={(e) => handle(() => toggleWorkerSignup(college.id, e.target.checked))}
+              onChange={(e) => {
+                const next = e.target.checked;
+                setAllowWorker(next);
+                handle(() => toggleWorkerSignup(college.id, next));
+              }}
             />
           </label>
         </div>

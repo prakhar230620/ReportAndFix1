@@ -53,15 +53,44 @@ export default async function HomePage() {
     pendingCount = count ?? 0;
   }
 
+  let queuePendingCount = 0;
+  if (isAdmin && profile?.college_id) {
+    const { count } = await supabase
+      .from("complaints")
+      .select("id", { count: "exact", head: true })
+      .eq("college_id", profile.college_id)
+      .neq("status", "completed");
+    queuePendingCount = count ?? 0;
+  }
+
+  let taskCount = 0;
+  if (isWorker) {
+    const { count } = await supabase
+      .from("complaints")
+      .select("id", { count: "exact", head: true })
+      .eq("assigned_worker_id", user.id)
+      .in("status", ["assigned", "processing"]);
+    taskCount = count ?? 0;
+  }
+
   const links: { href: string; label: string; sub: string; badge?: number }[] = [];
-  if (isAdmin) links.push({ href: "/admin/locations", label: "Locations & QR", sub: "Manage your organisation's structure" });
-  if (isAdmin) links.push({ href: "/admin/queue", label: "Complaint Queue", sub: "Assign and verify" });
+  if (isAdmin)
+    links.push({
+      href: isSuperAdmin ? "/super-admin" : "/admin",
+      label: "Dashboard",
+      sub: "Your overview and quick links",
+    });
+  if (profile?.role === "college_admin")
+    links.push({ href: "/admin/queue", label: "Complaint Queue", sub: "Assign and verify", badge: queuePendingCount });
+  if (profile?.role === "college_admin")
+    links.push({ href: "/admin/locations", label: "Locations & QR", sub: "Manage your organisation's structure" });
   if (profile?.role === "college_admin" && pendingCount > 0)
     links.push({ href: "/admin/role-requests", label: "Role Requests", sub: "Worker/Admin access waiting on you", badge: pendingCount });
-  if (isSuperAdmin) links.push({ href: "/super-admin", label: "Super Admin", sub: "Manage organisations" });
+  if (isSuperAdmin) links.push({ href: "/super-admin/analytics", label: "Platform Analytics", sub: "All organisations, storage usage" });
+  if (isSuperAdmin) links.push({ href: "/super-admin/export", label: "Export", sub: "CSV export across organisations" });
   if (isSuperAdmin && pendingCount > 0)
     links.push({ href: "/super-admin/admin-requests", label: "Admin Requests", sub: "Admin access waiting on you", badge: pendingCount });
-  if (isWorker) links.push({ href: "/worker", label: "My Tasks", sub: "Assigned work" });
+  if (isWorker) links.push({ href: "/worker", label: "My Tasks", sub: "Assigned work", badge: taskCount });
   links.push({ href: "/locations", label: "Report an issue", sub: "Scan a QR or pick a location" });
   links.push({ href: "/feed", label: "Feed", sub: "Open and completed issues" });
   links.push({ href: "/profile", label: "Profile", sub: "Account settings" });

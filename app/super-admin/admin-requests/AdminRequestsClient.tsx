@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { approveAdmin, rejectAdminRequest, toggleAdminSignup } from "./actions";
 
 type Req = {
@@ -25,6 +25,9 @@ export default function AdminRequestsClient({
   colleges: College[];
 }) {
   const [pending, startTransition] = useTransition();
+  const [allowAdmin, setAllowAdmin] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(colleges.map((c) => [c.id, c.allow_admin_signup]))
+  );
 
   function handle(fn: () => Promise<{ error?: string; ok?: boolean }>) {
     startTransition(async () => {
@@ -92,9 +95,13 @@ export default function AdminRequestsClient({
               {c.name}
               <input
                 type="checkbox"
-                defaultChecked={c.allow_admin_signup}
+                checked={allowAdmin[c.id] ?? c.allow_admin_signup}
                 disabled={pending}
-                onChange={(e) => handle(() => toggleAdminSignup(c.id, e.target.checked))}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setAllowAdmin((prev) => ({ ...prev, [c.id]: next }));
+                  handle(() => toggleAdminSignup(c.id, next));
+                }}
               />
             </label>
           ))}
