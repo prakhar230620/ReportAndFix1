@@ -24,14 +24,24 @@ export default async function AdminLayout({
     redirect("/");
   }
 
-  let pendingCount = 0;
+  let roleRequestCount = 0;
   if (profile.role === "college_admin" && profile.college_id) {
     const { count } = await supabase
       .from("role_requests")
       .select("id", { count: "exact", head: true })
       .eq("college_id", profile.college_id)
       .eq("status", "pending");
-    pendingCount = count ?? 0;
+    roleRequestCount = count ?? 0;
+  }
+
+  let queuePendingCount = 0;
+  if (profile.college_id) {
+    const { count } = await supabase
+      .from("complaints")
+      .select("id", { count: "exact", head: true })
+      .eq("college_id", profile.college_id)
+      .neq("status", "completed");
+    queuePendingCount = count ?? 0;
   }
 
   return (
@@ -40,8 +50,8 @@ export default async function AdminLayout({
         brand="ReportAndFix Admin"
         items={[
           { href: "/", label: "Home" },
-          { href: "/admin/queue", label: "Queue" },
-          { href: "/admin/role-requests", label: "Role Requests", badge: pendingCount },
+          { href: "/admin/queue", label: "Queue", badge: queuePendingCount },
+          { href: "/admin/role-requests", label: "Role Requests", badge: roleRequestCount },
           { href: "/admin/locations", label: "Locations" },
           { href: "/admin/analytics", label: "Analytics" },
           { href: "/admin/export", label: "Export" },

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import BackButton from "@/app/components/BackButton";
+import Link from "next/link";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -65,7 +66,7 @@ export default function ForgotPasswordPage() {
         </button>
       </form>
       <p className="mt-4 text-sm text-neutral-600">
-        <a href="/login" className="font-medium text-blue-600 hover:text-blue-700">Back to log in</a>
+        <Link href="/login" className="font-medium text-blue-600 hover:text-blue-700">Back to log in</Link>
       </p>
     </main>
   );

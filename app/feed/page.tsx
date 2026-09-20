@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import VoteButton from "@/app/components/VoteButton";
 import ShareButton from "@/app/components/ShareButton";
 import BackButton from "@/app/components/BackButton";
+import Link from "next/link";
 
 export const maxDuration = 30;
 
@@ -48,13 +49,13 @@ export default async function FeedPage({
         <main className="mx-auto flex min-h-screen max-w-sm flex-col gap-3 px-6 py-10">
           <h1 className="text-xl font-semibold">Choose an organisation</h1>
           {(colleges ?? []).map((c) => (
-            <a
+            <Link
               key={c.id}
               href={`/feed?college=${c.id}`}
               className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
             >
               {c.name}
-            </a>
+            </Link>
           ))}
         </main>
       );
@@ -101,9 +102,9 @@ export default async function FeedPage({
       <BackButton />
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{collegeName}</h1>
-        <a href="/" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+        <Link href="/" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
           Home
-        </a>
+        </Link>
       </div>
 
       <section>
@@ -119,9 +120,9 @@ export default async function FeedPage({
                   className="mb-2 h-32 w-full rounded-md object-cover"
                 />
               )}
-              <a href={`/issues/${issue.public_id}`} className="font-medium text-neutral-900 hover:text-blue-600">
+              <Link href={`/issues/${issue.public_id}`} className="font-medium text-neutral-900 hover:text-blue-600">
                 {issue.title}
-              </a>
+              </Link>
               <div className="mt-1 text-neutral-500">
                 {issue.category_name} · {issue.location_name}
               </div>
@@ -152,7 +153,7 @@ export default async function FeedPage({
         <h2 className="mb-3 text-lg font-semibold">Completed Issues</h2>
         <div className="flex flex-col gap-3">
           {completedWithImages.map((issue) => (
-            <a
+            <Link
               key={issue.id}
               href={`/issues/${issue.public_id}`}
               className="rounded-md border border-neutral-200 p-3 text-sm"
@@ -182,7 +183,7 @@ export default async function FeedPage({
               <div className="mt-1 text-xs text-neutral-500">
                 Resolved in {formatDuration(issue.resolution_seconds)} · {issue.vote_count} joined
               </div>
-            </a>
+            </Link>
           ))}
           {completedWithImages.length === 0 && (
             <p className="text-sm text-neutral-500">Nothing completed yet.</p>
@@ -190,13 +191,13 @@ export default async function FeedPage({
         </div>
       </section>
 
-      <a
+      <Link
         href="/locations"
         className="fixed bottom-8 right-8 flex h-14 w-14 items-center justify-center rounded-full bg-neutral-900 text-2xl text-white shadow-lg"
         aria-label="Report an issue"
       >
         +
-      </a>
+      </Link>
     </main>
   );
 }

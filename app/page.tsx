@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/auth/actions";
 import { roleLabel } from "@/lib/roleLabel";
+import Link from "next/link";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -14,12 +15,12 @@ export default async function HomePage() {
         <h1 className="text-2xl font-semibold">ReportAndFix</h1>
         <p className="text-neutral-600">Scan a QR to report an issue.</p>
         <div className="flex gap-3">
-          <a href="/login" className="rounded-md bg-neutral-900 px-4 py-2 text-white">
+          <Link href="/login" className="rounded-md bg-neutral-900 px-4 py-2 text-white">
             Log in
-          </a>
-          <a href="/signup" className="rounded-md border border-neutral-300 px-4 py-2">
+          </Link>
+          <Link href="/signup" className="rounded-md border border-neutral-300 px-4 py-2">
             Sign up
-          </a>
+          </Link>
         </div>
       </main>
     );
@@ -78,7 +79,7 @@ export default async function HomePage() {
 
       <div className="flex flex-col gap-2">
         {links.map((l) => (
-          <a
+          <Link
             key={l.href}
             href={l.href}
             className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 shadow-sm transition-colors hover:border-neutral-300 hover:bg-neutral-50"
@@ -95,7 +96,7 @@ export default async function HomePage() {
               <div className="text-xs text-neutral-500">{l.sub}</div>
             </div>
             <span className="text-neutral-300">→</span>
-          </a>
+          </Link>
         ))}
       </div>
 

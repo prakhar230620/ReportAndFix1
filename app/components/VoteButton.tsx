@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { joinComplaint, leaveComplaint } from "@/app/report/[token]/actions";
 
 export default function VoteButton({
@@ -23,12 +24,12 @@ export default function VoteButton({
 
   if (!isLoggedIn) {
     return (
-      <a
+      <Link
         href={`/login?next=${encodeURIComponent(loginNext)}`}
         className="rounded-md border border-neutral-300 px-3 py-1 text-xs"
       >
         Log in to vote
-      </a>
+      </Link>
     );
   }
 

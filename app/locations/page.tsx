@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import QRScanButton from "./QRScanButton";
 import BackButton from "@/app/components/BackButton";
+import Link from "next/link";
 
 export default async function LocationsPickerPage() {
   const supabase = await createClient();
@@ -53,14 +54,14 @@ export default async function LocationsPickerPage() {
 
       <div className="flex flex-col gap-2">
         {withPaths.map((loc) => (
-          <a
+          <Link
             key={loc.id}
             href={`/report/${loc.qr_token}`}
             className="rounded-md border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50"
           >
             <div className="font-medium">{loc.name}</div>
             <div className="text-neutral-500">{loc.path}</div>
-          </a>
+          </Link>
         ))}
         {withPaths.length === 0 && (
           <p className="text-neutral-500">

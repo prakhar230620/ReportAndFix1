@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 
 export default async function WorkerTasksPage() {
   const supabase = await createClient();
@@ -15,7 +16,7 @@ export default async function WorkerTasksPage() {
   return (
     <div className="flex flex-col gap-3">
       {(tasks ?? []).map((t) => (
-        <a
+        <Link
           key={t.id}
           href={`/worker/${t.public_id}`}
           className="rounded-md border border-neutral-200 p-3 text-sm hover:bg-neutral-50"
@@ -31,7 +32,7 @@ export default async function WorkerTasksPage() {
             <span className="rounded-full bg-neutral-200 px-2 py-0.5">{t.status}</span>
             <span className="rounded-full bg-neutral-200 px-2 py-0.5">{t.priority}</span>
           </div>
-        </a>
+        </Link>
       ))}
       {(tasks ?? []).length === 0 && (
         <p className="text-sm text-neutral-500">No tasks assigned to you yet.</p>

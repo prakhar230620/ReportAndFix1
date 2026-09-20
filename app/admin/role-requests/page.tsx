@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import RoleRequestsClient from "./RoleRequestsClient";
+import Link from "next/link";
 
 export default async function RoleRequestsPage() {
   const supabase = await createClient();
@@ -20,12 +21,12 @@ export default async function RoleRequestsPage() {
       <div className="rounded-md border border-neutral-200 p-4 text-sm text-neutral-600">
         Super Admin approves Admin requests (after all current admins
         endorse) from the{" "}
-        <a
+        <Link
           href="/super-admin/admin-requests"
           className="font-medium text-blue-600 hover:text-blue-700"
         >
           Super Admin → Admin Requests
-        </a>{" "}
+        </Link>{" "}
         page.
       </div>
     );

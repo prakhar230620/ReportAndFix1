@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { signup, signInWithGoogle } from "@/app/auth/actions";
 import CollegeRoleFields from "@/app/components/CollegeRoleFields";
 import BackButton from "@/app/components/BackButton";
+import Link from "next/link";
 
 export default async function SignupPage({
   searchParams,
@@ -96,9 +97,9 @@ export default async function SignupPage({
 
       <p className="mt-4 text-sm text-neutral-600">
         Already have an account?{" "}
-        <a href={`/login?next=${encodeURIComponent(next ?? "/")}`} className="font-medium text-blue-600 hover:text-blue-700">
+        <Link href={`/login?next=${encodeURIComponent(next ?? "/")}`} className="font-medium text-blue-600 hover:text-blue-700">
           Log in
-        </a>
+        </Link>
       </p>
     </main>
   );

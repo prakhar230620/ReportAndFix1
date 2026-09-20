@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import BackButton from "@/app/components/BackButton";
+import Link from "next/link";
 import { roleLabel } from "@/lib/roleLabel";
 import ProfileForm from "./ProfileForm";
 
@@ -23,7 +24,7 @@ export default async function ProfilePage() {
       <BackButton />
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Profile</h1>
-        <a href="/" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">Home</a>
+        <Link href="/" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">Home</Link>
       </div>
 
       <div className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600">

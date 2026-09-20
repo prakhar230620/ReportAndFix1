@@ -1,5 +1,6 @@
 import { login, signInWithGoogle } from "@/app/auth/actions";
 import BackButton from "@/app/components/BackButton";
+import Link from "next/link";
 
 export default async function LoginPage({
   searchParams,
@@ -78,14 +79,14 @@ export default async function LoginPage({
       </form>
 
       <p className="mt-4 text-sm text-neutral-600">
-        <a href="/forgot-password" className="font-medium text-blue-600 hover:text-blue-700">Forgot password?</a>
+        <Link href="/forgot-password" className="font-medium text-blue-600 hover:text-blue-700">Forgot password?</Link>
       </p>
 
       <p className="mt-2 text-sm text-neutral-600">
         Don&apos;t have an account?{" "}
-        <a href={`/signup?next=${encodeURIComponent(next ?? "/")}`} className="font-medium text-blue-600 hover:text-blue-700">
+        <Link href={`/signup?next=${encodeURIComponent(next ?? "/")}`} className="font-medium text-blue-600 hover:text-blue-700">
           Sign up
-        </a>
+        </Link>
       </p>
     </main>
   );

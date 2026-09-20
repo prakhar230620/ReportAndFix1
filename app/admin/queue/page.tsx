@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 
 export default async function AdminQueuePage({
   searchParams,
@@ -19,24 +20,6 @@ export default async function AdminQueuePage({
 
   const collegeId = profile?.college_id;
 
-  const [{ data: categories }, { data: locations }, { data: queue }] = await Promise.all([
-    supabase.from("categories").select("id, name").eq("college_id", collegeId).order("name"),
-    supabase.from("locations").select("id, name").eq("college_id", collegeId).order("name"),
-    supabase.rpc("get_admin_queue" as never, {
-      p_college_id: collegeId,
-      p_status: status || null,
-      p_category_id: category || null,
-      p_location_id: location || null,
-    } as never),
-  ]);
-
-  function filterUrl(overrides: Record<string, string | undefined>) {
-    const params = new URLSearchParams();
-    const merged = { status, category, location, ...overrides };
-    for (const [k, v] of Object.entries(merged)) if (v) params.set(k, v);
-    return `/admin/queue?${params.toString()}`;
-  }
-
   const STATUSES = [
     "submitted",
     "assigned",
@@ -46,25 +29,61 @@ export default async function AdminQueuePage({
     "reopened",
   ];
 
+  const [{ data: categories }, { data: locations }, { data: queue }, { data: statusRows }] =
+    await Promise.all([
+      supabase.from("categories").select("id, name").eq("college_id", collegeId).order("name"),
+      supabase.from("locations").select("id, name").eq("college_id", collegeId).order("name"),
+      supabase.rpc("get_admin_queue" as never, {
+        p_college_id: collegeId,
+        p_status: status || null,
+        p_category_id: category || null,
+        p_location_id: location || null,
+      } as never),
+      supabase.from("complaints").select("status").eq("college_id", collegeId!),
+    ]);
+
+  const counts: Record<string, number> = {};
+  for (const r of statusRows ?? []) {
+    counts[r.status] = (counts[r.status] ?? 0) + 1;
+  }
+  const pendingTotal = STATUSES.filter((s) => s !== "completed").reduce(
+    (sum, s) => sum + (counts[s] ?? 0),
+    0
+  );
+
+  function filterUrl(overrides: Record<string, string | undefined>) {
+    const params = new URLSearchParams();
+    const merged = { status, category, location, ...overrides };
+    for (const [k, v] of Object.entries(merged)) if (v) params.set(k, v);
+    return `/admin/queue?${params.toString()}`;
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-xl font-semibold">Admin Queue</h1>
 
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <SummaryCard label="Pending (open)" value={pendingTotal} tone="amber" />
+        <SummaryCard label="Assigned" value={counts["assigned"] ?? 0} tone="blue" />
+        <SummaryCard label="Processing" value={counts["processing"] ?? 0} tone="blue" />
+        <SummaryCard label="Completed" value={counts["completed"] ?? 0} tone="green" />
+      </div>
+
       <div className="flex flex-wrap gap-2 text-sm">
-        <a
+        <Link
           href={filterUrl({ status: undefined })}
           className={`rounded-full px-3 py-1 ${!status ? "bg-neutral-900 text-white" : "bg-neutral-200"}`}
         >
           All statuses
-        </a>
+        </Link>
         {STATUSES.map((s) => (
-          <a
+          <Link
             key={s}
             href={filterUrl({ status: s })}
             className={`rounded-full px-3 py-1 ${status === s ? "bg-neutral-900 text-white" : "bg-neutral-200"}`}
           >
-            {s}
-          </a>
+            {s} {counts[s] ? `(${counts[s]})` : ""}
+          </Link>
         ))}
       </div>
 
@@ -103,7 +122,7 @@ export default async function AdminQueuePage({
 
       <div className="flex flex-col gap-2">
         {(queue ?? []).map((c: any) => (
-          <a
+          <Link
             key={c.id}
             href={`/admin/queue/${c.public_id}`}
             className="rounded-md border border-neutral-200 p-3 text-sm hover:bg-neutral-50"
@@ -121,12 +140,30 @@ export default async function AdminQueuePage({
               <span>{c.vote_count} joined</span>
               {c.assigned_worker_name && <span>· {c.assigned_worker_name}</span>}
             </div>
-          </a>
+          </Link>
         ))}
         {(queue ?? []).length === 0 && (
           <p className="text-sm text-neutral-500">No complaints match these filters.</p>
         )}
       </div>
+    </div>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: "blue" | "green" | "amber";
+}) {
+  const toneMap = { blue: "text-blue-600", green: "text-green-600", amber: "text-amber-600" };
+  return (
+    <div className="rounded-xl border border-neutral-200 bg-white p-3 shadow-sm">
+      <div className={`text-2xl font-semibold ${toneMap[tone]}`}>{value}</div>
+      <div className="text-xs text-neutral-500">{label}</div>
     </div>
   );
 }

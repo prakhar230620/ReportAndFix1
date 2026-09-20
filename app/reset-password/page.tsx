@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import BackButton from "@/app/components/BackButton";
+import Link from "next/link";
 
 export default function ResetPasswordPage() {
   const [ready, setReady] = useState(false);
@@ -46,9 +47,9 @@ export default function ResetPasswordPage() {
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center gap-2 px-6 text-center">
         <h1 className="text-xl font-semibold">Password updated</h1>
-        <a href="/" className="mt-2 rounded-md bg-neutral-900 px-4 py-2 text-white">
+        <Link href="/" className="mt-2 rounded-md bg-neutral-900 px-4 py-2 text-white">
           Continue
-        </a>
+        </Link>
       </main>
     );
   }

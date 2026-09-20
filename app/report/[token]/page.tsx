@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import ReportForm from "./ReportForm";
+import Link from "next/link";
 import BackButton from "@/app/components/BackButton";
 
 export default async function ReportQrPage({
@@ -58,18 +59,18 @@ export default async function ReportQrPage({
         {locationSummary && <p className="text-neutral-600">{locationSummary}</p>}
         <p className="text-neutral-600">Log in to report an issue at this location.</p>
         <div className="flex gap-3">
-          <a
+          <Link
             href={`/login?next=${encodeURIComponent(next)}`}
             className="rounded-md bg-neutral-900 px-4 py-2 text-white"
           >
             Log in
-          </a>
-          <a
+          </Link>
+          <Link
             href={`/signup?next=${encodeURIComponent(next)}`}
             className="rounded-md border border-neutral-300 px-4 py-2"
           >
             Sign up
-          </a>
+          </Link>
         </div>
       </main>
     );

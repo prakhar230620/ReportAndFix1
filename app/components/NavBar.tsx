@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import BackButton from "./BackButton";
 
 export default function NavBar({
@@ -24,9 +25,10 @@ export default function NavBar({
             const active =
               item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (
-              <a
+              <Link
                 key={item.href}
                 href={item.href}
+                prefetch
                 className={`relative rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                   active
                     ? "bg-neutral-900 text-white"
@@ -39,7 +41,7 @@ export default function NavBar({
                     {item.badge}
                   </span>
                 )}
-              </a>
+              </Link>
             );
           })}
         </div>

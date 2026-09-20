@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import AssignForm from "../AssignForm";
 import VerifyActions from "../VerifyActions";
+import Link from "next/link";
 
 export default async function AdminComplaintDetailPage({
   params,
@@ -107,9 +108,9 @@ export default async function AdminComplaintDetailPage({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between text-xs text-neutral-500">
         <span>{complaint.public_id}</span>
-        <a href={`/issues/${complaint.public_id}`} className="font-medium text-blue-600 hover:text-blue-700">
+        <Link href={`/issues/${complaint.public_id}`} className="font-medium text-blue-600 hover:text-blue-700">
           View public page
-        </a>
+        </Link>
       </div>
 
       <h1 className="text-xl font-semibold">{complaint.title}</h1>

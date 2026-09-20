@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import {
   ChevronRight,
   ChevronDown,
@@ -160,12 +161,12 @@ export default function LocationExplorer({
             Manage your organisation's structure, assign QR codes, and organise easily.
           </p>
         </div>
-        <a
+        <Link
           href="/admin/locations/qr-sheet"
           className="flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
         >
           <QrCode size={15} /> Bulk QR
-        </a>
+        </Link>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

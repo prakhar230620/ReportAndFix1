@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Download, Printer, QrCode, CheckSquare, Square } from "lucide-react";
+import Link from "next/link";
 import { assignQrBulk } from "../actions";
 
 type Eligible = { id: string; name: string; path: string };
@@ -81,9 +82,9 @@ export default function QrSheetClient({
               Generate QR codes for many locations at once, then download or print the sheet.
             </p>
           </div>
-          <a href="/admin/locations" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm">
+          <Link href="/admin/locations" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm">
             Back to Locations
-          </a>
+          </Link>
         </div>
 
         {eligible.length > 0 && (
