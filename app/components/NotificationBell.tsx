@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-type Notification = {
+type AppNotification = {
   id: string;
   message: string;
   href: string;
@@ -21,19 +21,37 @@ export default function NotificationBell({
   collegeId?: string | null;
   userId?: string;
 }) {
-  const [items, setItems] = useState<Notification[]>([]);
+  const [items, setItems] = useState<AppNotification[]>([]);
   const [open, setOpen] = useState(false);
   const [unseen, setUnseen] = useState(0);
   const router = useRouter();
   const supabase = useRef(createClient());
 
   useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window && window.Notification.permission === "default") {
+      window.Notification.requestPermission();
+    }
+  }, []);
+
+  useEffect(() => {
     const client = supabase.current;
     const channels: ReturnType<typeof client.channel>[] = [];
 
-    function push(n: Omit<Notification, "id" | "time">) {
+    function push(n: Omit<AppNotification, "id" | "time">) {
       setItems((prev) => [{ ...n, id: crypto.randomUUID(), time: Date.now() }, ...prev].slice(0, 20));
       setUnseen((u) => u + 1);
+      if (typeof window !== "undefined" && "Notification" in window && window.Notification.permission === "granted") {
+        try {
+          const notif = new window.Notification("ReportAndFix", { body: n.message });
+          notif.onclick = () => {
+            window.focus();
+            router.push(n.href);
+          };
+        } catch {
+          // Notification constructor can throw on some mobile browsers
+          // (e.g. requires a service worker) -- the in-app bell still works.
+        }
+      }
     }
 
     if (role === "college_admin" && collegeId) {
@@ -80,18 +98,25 @@ export default function NotificationBell({
       );
     }
 
-    if (role === "worker" && userId) {
+    if (role === "worker" && userId && collegeId) {
       channels.push(
         client
           .channel(`worker-tasks-${userId}`)
           .on(
             "postgres_changes",
-            { event: "UPDATE", schema: "public", table: "complaints", filter: `assigned_worker_id=eq.${userId}` },
+            { event: "UPDATE", schema: "public", table: "complaints", filter: `college_id=eq.${collegeId}` },
             (payload) => {
-              if (payload.new.status === "assigned" && payload.old.assigned_worker_id !== userId) {
+              const wasMine = payload.old.assigned_worker_id === userId;
+              const isMine = payload.new.assigned_worker_id === userId;
+              if (isMine && !wasMine) {
                 push({
                   message: `New task assigned: ${payload.new.title ?? "Untitled"}`,
                   href: `/worker/${payload.new.public_id}`,
+                });
+              } else if (wasMine && !isMine) {
+                push({
+                  message: `"${payload.new.title ?? "A task"}" was reassigned to someone else`,
+                  href: "/worker",
                 });
               }
             }

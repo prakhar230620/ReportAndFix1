@@ -126,11 +126,15 @@ export default async function AdminComplaintDetailPage({
         )}
       </div>
 
-      {complaint.status === "submitted" && (
+      {["submitted", "assigned", "processing", "reopened"].includes(complaint.status) && (
         <AssignForm
           complaintId={complaint.id}
           workers={workers ?? []}
           departments={departments ?? []}
+          currentWorkerId={complaint.assigned_worker_id}
+          currentWorkerName={
+            (workers ?? []).find((w) => w.id === complaint.assigned_worker_id)?.display_name
+          }
         />
       )}
 

@@ -3,10 +3,18 @@ import { createClient } from "@/lib/supabase/server";
 export default async function SuperAdminAnalyticsPage() {
   const supabase = await createClient();
 
-  const { data: colleges } = await supabase
+  const { data: colleges, error: collegesError } = await supabase
     .from("colleges")
-    .select("id, name, status")
+    .select("id, name, subscription_status")
     .order("name");
+
+  if (collegesError) {
+    return (
+      <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        Couldn&apos;t load organisations: {collegesError.message}
+      </div>
+    );
+  }
 
   const perCollege = await Promise.all(
     (colleges ?? []).map(async (c) => {
@@ -17,7 +25,7 @@ export default async function SuperAdminAnalyticsPage() {
       return {
         id: c.id,
         name: c.name,
-        status: c.status,
+        status: c.subscription_status,
         total: stats?.total ?? 0,
         completed: stats?.completed ?? 0,
         avgResolutionHours: stats?.avg_resolution_seconds

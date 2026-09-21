@@ -54,6 +54,53 @@ export async function assignComplaint(
   return { ok: true };
 }
 
+export async function unassignComplaint(complaintId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: complaint } = await supabase
+    .from("complaints")
+    .select("college_id, status")
+    .eq("id", complaintId)
+    .single();
+
+  const { error } = await supabase
+    .from("complaints")
+    .update({
+      assigned_worker_id: null,
+      assigned_department_id: null,
+      assigned_by: null,
+      assigned_at: null,
+      status: "submitted",
+    })
+    .eq("id", complaintId);
+
+  if (error) return { error: error.message };
+
+  await supabase.from("complaint_status_history").insert({
+    complaint_id: complaintId,
+    previous_status: complaint?.status ?? "assigned",
+    new_status: "submitted",
+    actor_id: user.id,
+    note: "Unassigned by admin",
+  });
+
+  await supabase.from("audit_log").insert({
+    college_id: complaint?.college_id,
+    actor_id: user.id,
+    action: "unassigned",
+    entity_type: "complaint",
+    entity_id: complaintId,
+    metadata: {},
+  });
+
+  revalidatePath("/admin/queue");
+  return { ok: true };
+}
+
 export async function approveComplaint(complaintId: string) {
   const supabase = await createClient();
   const {
