@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { startProcessing, addProgressUpdate, finishTask } from "./actions";
+import { compressImage } from "@/lib/compressImage";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -13,16 +15,18 @@ export default function TaskActions({
   complaintId: string;
   status: string;
 }) {
+  const router = useRouter();
   const [note, setNote] = useState("");
   const [finalNote, setFinalNote] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function handleFiles(selected: FileList | null) {
-    if (!selected) return;
+  async function handleFiles(selected: FileList | null) {
+    if (!selected || selected.length === 0) return;
     const arr = Array.from(selected);
     for (const f of arr) {
       if (!ALLOWED_TYPES.includes(f.type)) {
@@ -35,7 +39,13 @@ export default function TaskActions({
       }
     }
     setFileError(null);
-    setFiles(arr);
+    setCompressing(true);
+    try {
+      const compressed = await Promise.all(arr.map((f) => compressImage(f)));
+      setFiles(compressed);
+    } finally {
+      setCompressing(false);
+    }
   }
 
   function handleStart() {
@@ -43,7 +53,7 @@ export default function TaskActions({
       setError(null);
       const result = await startProcessing(complaintId);
       if (result.error) setError(result.error);
-      else window.location.reload();
+      else router.refresh();
     });
   }
 
@@ -55,7 +65,7 @@ export default function TaskActions({
       if (result.error) setError(result.error);
       else {
         setNote("");
-        window.location.reload();
+        router.refresh();
       }
     });
   }
@@ -67,24 +77,33 @@ export default function TaskActions({
     }
     setError(null);
     startTransition(async () => {
-      for (let i = 0; i < files.length; i++) {
-        setUploadProgress(`Uploading ${i + 1}/${files.length}…`);
-        const fd = new FormData();
-        fd.append("file", files[i]);
-        fd.append("complaint_id", complaintId);
-        fd.append("media_type", "after");
-        const res = await fetch("/api/complaints/media", { method: "POST", body: fd });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          setError(`Photo ${i + 1} failed: ${body.error ?? res.statusText}`);
-          setUploadProgress(null);
-          return;
-        }
-      }
+      setUploadProgress(`Uploading 0/${files.length}…`);
+      let doneCount = 0;
+      const results = await Promise.all(
+        files.map(async (file, i) => {
+          const fd = new FormData();
+          fd.append("file", file);
+          fd.append("complaint_id", complaintId);
+          fd.append("media_type", "after");
+          const res = await fetch("/api/complaints/media", { method: "POST", body: fd });
+          doneCount += 1;
+          setUploadProgress(`Uploading ${doneCount}/${files.length}…`);
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            return { index: i, error: body.error ?? res.statusText };
+          }
+          return null;
+        })
+      );
+      const failed = results.filter(Boolean) as { index: number; error: string }[];
       setUploadProgress(null);
+      if (failed.length > 0) {
+        setError(`${failed.length} photo(s) failed to upload: ${failed.map((f) => f.error).join("; ")}`);
+        return;
+      }
       const result = await finishTask(complaintId, finalNote);
       if (result.error) setError(result.error);
-      else window.location.reload();
+      else router.refresh();
     });
   }
 
@@ -128,12 +147,13 @@ export default function TaskActions({
               type="file"
               accept="image/jpeg,image/png,image/webp"
               multiple
-              capture="environment"
+              disabled={compressing}
               onChange={(e) => handleFiles(e.target.files)}
               className="text-sm"
             />
             {fileError && <p className="text-xs text-red-600">{fileError}</p>}
-            {files.length > 0 && (
+            {compressing && <p className="text-xs text-neutral-500">Compressing photo(s)…</p>}
+            {!compressing && files.length > 0 && (
               <p className="text-xs text-neutral-500">{files.length} after-photo(s) selected.</p>
             )}
             <textarea
@@ -146,7 +166,7 @@ export default function TaskActions({
             {uploadProgress && <p className="text-xs text-neutral-500">{uploadProgress}</p>}
             <button
               onClick={handleFinish}
-              disabled={pending}
+              disabled={pending || compressing || files.length === 0}
               className="self-start rounded-md bg-neutral-900 px-4 py-2 text-sm text-white disabled:opacity-40"
             >
               Submit for verification

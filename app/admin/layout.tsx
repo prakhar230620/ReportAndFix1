@@ -52,6 +52,7 @@ export default async function AdminLayout({
           { href: "/", label: "Home" },
           { href: "/admin/queue", label: "Queue", badge: queuePendingCount },
           { href: "/admin/role-requests", label: "Role Requests", badge: roleRequestCount },
+          { href: "/admin/departments", label: "Departments" },
           { href: "/admin/locations", label: "Locations" },
           { href: "/admin/analytics", label: "Analytics" },
           { href: "/admin/export", label: "Export" },

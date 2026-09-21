@@ -14,6 +14,7 @@ type Req = {
   user_id: string;
   profiles: { display_name: string | null } | null;
 };
+type Department = { id: string; name: string };
 
 export default function RoleRequestsClient({
   college,
@@ -22,6 +23,7 @@ export default function RoleRequestsClient({
   approvalCounts,
   adminCountNeeded,
   myApprovedIds,
+  departments,
 }: {
   college: { id: string; name: string; allow_worker_signup: boolean };
   workerRequests: Req[];
@@ -29,6 +31,7 @@ export default function RoleRequestsClient({
   approvalCounts: Record<string, number>;
   adminCountNeeded: number;
   myApprovedIds: string[];
+  departments: Department[];
 }) {
   const [pending, startTransition] = useTransition();
   const [allowWorker, setAllowWorker] = useState(college.allow_worker_signup);
@@ -65,28 +68,13 @@ export default function RoleRequestsClient({
         )}
         <div className="flex flex-col gap-2">
           {workerRequests.map((r) => (
-            <div
+            <WorkerRequestRow
               key={r.id}
-              className="flex items-center justify-between rounded-md border border-neutral-200 p-3 text-sm"
-            >
-              <span>{r.profiles?.display_name ?? "Unnamed"}</span>
-              <div className="flex gap-2">
-                <button
-                  disabled={pending}
-                  onClick={() => handle(() => approveWorker(r.id))}
-                  className="rounded-md bg-neutral-900 px-3 py-1 text-xs text-white disabled:opacity-40"
-                >
-                  Approve
-                </button>
-                <button
-                  disabled={pending}
-                  onClick={() => handle(() => rejectRequest(r.id, "Rejected by admin"))}
-                  className="rounded-md border border-neutral-300 px-3 py-1 text-xs disabled:opacity-40"
-                >
-                  Reject
-                </button>
-              </div>
-            </div>
+              req={r}
+              departments={departments}
+              pending={pending}
+              handle={handle}
+            />
           ))}
         </div>
       </section>
@@ -136,6 +124,51 @@ export default function RoleRequestsClient({
           })}
         </div>
       </section>
+    </div>
+  );
+}
+
+function WorkerRequestRow({
+  req,
+  departments,
+  pending,
+  handle,
+}: {
+  req: Req;
+  departments: Department[];
+  pending: boolean;
+  handle: (fn: () => Promise<{ error?: string; ok?: boolean }>) => void;
+}) {
+  const [deptId, setDeptId] = useState("");
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-neutral-200 p-3 text-sm">
+      <span>{req.profiles?.display_name ?? "Unnamed"}</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={deptId}
+          onChange={(e) => setDeptId(e.target.value)}
+          className="rounded-md border border-neutral-300 px-2 py-1 text-xs"
+        >
+          <option value="">No department</option>
+          {departments.map((d) => (
+            <option key={d.id} value={d.id}>{d.name}</option>
+          ))}
+        </select>
+        <button
+          disabled={pending}
+          onClick={() => handle(() => approveWorker(req.id, deptId || null))}
+          className="rounded-md bg-neutral-900 px-3 py-1 text-xs text-white disabled:opacity-40"
+        >
+          Approve
+        </button>
+        <button
+          disabled={pending}
+          onClick={() => handle(() => rejectRequest(req.id, "Rejected by admin"))}
+          className="rounded-md border border-neutral-300 px-3 py-1 text-xs disabled:opacity-40"
+        >
+          Reject
+        </button>
+      </div>
     </div>
   );
 }

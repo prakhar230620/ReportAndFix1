@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Download, Printer, QrCode, CheckSquare, Square } from "lucide-react";
 import Link from "next/link";
 import { assignQrBulk } from "../actions";
@@ -15,6 +16,7 @@ export default function QrSheetClient({
   eligible: Eligible[];
   withQr: WithQr[];
 }) {
+  const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const [sheetSelected, setSheetSelected] = useState<Set<string>>(new Set(withQr.map((l) => l.id)));
@@ -39,7 +41,7 @@ export default function QrSheetClient({
       if (res.failed > 0) {
         alert(`${res.succeeded} generated, ${res.failed} failed.`);
       }
-      window.location.reload();
+      router.refresh();
     });
   }
 

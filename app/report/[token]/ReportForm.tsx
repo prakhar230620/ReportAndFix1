@@ -3,6 +3,7 @@
 import { useState } from "react";
 import BackButton from "@/app/components/BackButton";
 import Link from "next/link";
+import { compressImage } from "@/lib/compressImage";
 import {
   checkDuplicates,
   createComplaint,
@@ -40,11 +41,12 @@ export default function ReportForm({
   const [description, setDescription] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<Step>({ name: "form" });
 
-  function handleFiles(selected: FileList | null) {
+  async function handleFiles(selected: FileList | null) {
     if (!selected) return;
     const arr = Array.from(selected);
     if (arr.length > MAX_FILES) {
@@ -62,7 +64,16 @@ export default function ReportForm({
       }
     }
     setFileError(null);
-    setFiles(arr);
+    // Compress up front so both the preview and the eventual upload are
+    // working with the smaller file -- keeps things visually identical,
+    // just faster to send.
+    setCompressing(true);
+    try {
+      const compressed = await Promise.all(arr.map((f) => compressImage(f)));
+      setFiles(compressed);
+    } finally {
+      setCompressing(false);
+    }
   }
 
   async function handleCheckDuplicates() {
@@ -112,21 +123,30 @@ export default function ReportForm({
 
       if (files.length > 0) {
         setStep({ name: "uploading", progress: `0/${files.length}` });
-        for (let i = 0; i < files.length; i++) {
-          const fd = new FormData();
-          fd.append("file", files[i]);
-          fd.append("complaint_id", complaintId);
-          fd.append("media_type", "before");
-          const res = await fetch("/api/complaints/media", { method: "POST", body: fd });
-          if (!res.ok) {
-            const body = await res.json().catch(() => ({}));
-            setFormError(
-              `Complaint created (${result.complaint.public_id}), but photo ${i + 1} failed: ${
-                body.error ?? res.statusText
-              }`
-            );
-          }
-          setStep({ name: "uploading", progress: `${i + 1}/${files.length}` });
+        let doneCount = 0;
+        const uploadResults = await Promise.all(
+          files.map(async (file, i) => {
+            const fd = new FormData();
+            fd.append("file", file);
+            fd.append("complaint_id", complaintId);
+            fd.append("media_type", "before");
+            const res = await fetch("/api/complaints/media", { method: "POST", body: fd });
+            doneCount += 1;
+            setStep({ name: "uploading", progress: `${doneCount}/${files.length}` });
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({}));
+              return { index: i, error: body.error ?? res.statusText };
+            }
+            return null;
+          })
+        );
+        const failed = uploadResults.filter(Boolean) as { index: number; error: string }[];
+        if (failed.length > 0) {
+          setFormError(
+            `Complaint created (${result.complaint.public_id}), but ${failed.length} photo(s) failed: ${failed
+              .map((f) => f.error)
+              .join("; ")}`
+          );
         }
       }
 
@@ -297,13 +317,16 @@ export default function ReportForm({
           type="file"
           accept="image/jpeg,image/png,image/webp"
           multiple
-          capture="environment"
+          disabled={compressing}
           onChange={(e) => handleFiles(e.target.files)}
           className="text-sm"
         />
       </label>
       {fileError && <p className="text-sm text-red-600">{fileError}</p>}
-      {files.length > 0 && (
+      {compressing && (
+        <p className="text-xs text-neutral-500">Compressing photo(s)…</p>
+      )}
+      {!compressing && files.length > 0 && (
         <p className="text-xs text-neutral-500">{files.length} photo(s) selected.</p>
       )}
 

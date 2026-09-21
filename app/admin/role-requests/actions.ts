@@ -3,12 +3,26 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function approveWorker(requestId: string) {
+export async function approveWorker(requestId: string, departmentId: string | null) {
   const supabase = await createClient();
+  const { data: req } = await supabase
+    .from("role_requests")
+    .select("user_id")
+    .eq("id", requestId)
+    .single();
+
   const { error } = await supabase.rpc("approve_worker_request" as never, {
     p_request_id: requestId,
   } as never);
   if (error) return { error: error.message };
+
+  if (departmentId && req?.user_id) {
+    await supabase
+      .from("profiles")
+      .update({ department_id: departmentId })
+      .eq("id", req.user_id);
+  }
+
   revalidatePath("/admin/role-requests");
   return { ok: true };
 }

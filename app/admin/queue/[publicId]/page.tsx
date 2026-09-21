@@ -63,7 +63,7 @@ export default async function AdminComplaintDetailPage({
       .select("id, display_name")
       .eq("college_id", collegeId)
       .eq("role", "worker"),
-    supabase.from("departments").select("id, name").eq("college_id", collegeId),
+    supabase.from("departments").select("id, name").eq("college_id", collegeId).eq("suspended", false),
   ]);
 
   const mediaWithUrls = await Promise.all(

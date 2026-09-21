@@ -40,6 +40,7 @@ export default async function RoleRequestsPage() {
     { data: adminRequests, error: adminErr },
     { data: myApprovals },
     { count: adminCount },
+    { data: departments },
   ] = await Promise.all([
     supabase.from("colleges").select("id, name, allow_worker_signup").eq("id", collegeId!).single(),
     supabase
@@ -62,6 +63,12 @@ export default async function RoleRequestsPage() {
       .select("id", { count: "exact", head: true })
       .eq("college_id", collegeId!)
       .eq("role", "college_admin"),
+    supabase
+      .from("departments")
+      .select("id, name")
+      .eq("college_id", collegeId!)
+      .eq("suspended", false)
+      .order("name"),
   ]);
 
   if (workerErr || adminErr) {
@@ -116,6 +123,7 @@ export default async function RoleRequestsPage() {
       approvalCounts={approvalCounts}
       adminCountNeeded={adminCount ?? 0}
       myApprovedIds={[...myApprovedIds]}
+      departments={departments ?? []}
     />
   );
 }
