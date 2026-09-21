@@ -113,7 +113,7 @@ export default async function IssueDetailPage({
               (m, i) =>
                 m.url && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <img loading="lazy" decoding="async"
                     key={i}
                     src={m.url}
                     alt={m.media_type}

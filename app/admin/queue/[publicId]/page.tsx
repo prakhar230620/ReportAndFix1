@@ -41,6 +41,7 @@ export default async function AdminComplaintDetailPage({
     { data: media },
     { data: workers },
     { data: departments },
+    { data: locationPath },
   ] = await Promise.all([
     supabase
       .from("complaint_status_history")
@@ -64,6 +65,7 @@ export default async function AdminComplaintDetailPage({
       .eq("college_id", collegeId)
       .eq("role", "worker"),
     supabase.from("departments").select("id, name").eq("college_id", collegeId).eq("suspended", false),
+    supabase.rpc("location_full_path" as never, { p_location_id: complaint.location_id } as never),
   ]);
 
   const mediaWithUrls = await Promise.all(
@@ -99,9 +101,6 @@ export default async function AdminComplaintDetailPage({
   const afterUrl = mediaWithUrls.find((m) => m.media_type === "after")?.url;
 
   const category = (complaint as any).categories?.name;
-  const { data: locationPath } = await supabase.rpc("location_full_path" as never, {
-    p_location_id: complaint.location_id,
-  } as never);
   const locationSummary = (locationPath as unknown as string) ?? (complaint as any).locations?.name ?? "";
 
   return (
@@ -140,11 +139,11 @@ export default async function AdminComplaintDetailPage({
           <div className="flex gap-2">
             {beforeUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={beforeUrl} alt="Before" className="h-32 w-1/2 rounded-md object-cover" />
+              <img loading="lazy" decoding="async" src={beforeUrl} alt="Before" className="h-32 w-1/2 rounded-md object-cover" />
             )}
             {afterUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={afterUrl} alt="After" className="h-32 w-1/2 rounded-md object-cover" />
+              <img loading="lazy" decoding="async" src={afterUrl} alt="After" className="h-32 w-1/2 rounded-md object-cover" />
             )}
           </div>
           <VerifyActions complaintId={complaint.id} />

@@ -3,13 +3,16 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import BackButton from "./BackButton";
+import NotificationBell from "./NotificationBell";
 
 export default function NavBar({
   brand,
   items,
+  notify,
 }: {
   brand: string;
   items: { href: string; label: string; badge?: number }[];
+  notify?: { role: "college_admin" | "super_admin" | "worker"; collegeId?: string | null; userId?: string };
 }) {
   const pathname = usePathname();
 
@@ -19,6 +22,9 @@ export default function NavBar({
         <div className="flex items-center gap-3">
           <BackButton fallbackHref="/" />
           <span className="font-semibold text-neutral-900">{brand}</span>
+          {notify && (
+            <NotificationBell role={notify.role} collegeId={notify.collegeId} userId={notify.userId} />
+          )}
         </div>
         <div className="flex flex-wrap gap-1.5">
           {items.map((item) => {

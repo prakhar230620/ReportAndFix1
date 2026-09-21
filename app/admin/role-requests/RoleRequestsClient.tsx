@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Toggle from "@/app/components/Toggle";
 import {
   approveWorker,
   rejectRequest,
@@ -51,12 +52,9 @@ export default function RoleRequestsClient({
           <h2 className="text-lg font-semibold">Worker requests</h2>
           <label className="flex items-center gap-2 text-xs text-neutral-500">
             Allow new worker signups
-            <input
-              type="checkbox"
+            <Toggle
               checked={allowWorker}
-              disabled={pending}
-              onChange={(e) => {
-                const next = e.target.checked;
+              onChange={(next) => {
                 setAllowWorker(next);
                 handle(() => toggleWorkerSignup(college.id, next));
               }}

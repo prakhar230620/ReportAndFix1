@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Toggle from "@/app/components/Toggle";
 import { approveAdmin, rejectAdminRequest, toggleAdminSignup } from "./actions";
 
 type Req = {
@@ -93,12 +94,9 @@ export default function AdminRequestsClient({
               className="flex items-center justify-between rounded-md border border-neutral-200 p-3 text-sm"
             >
               {c.name}
-              <input
-                type="checkbox"
+              <Toggle
                 checked={allowAdmin[c.id] ?? c.allow_admin_signup}
-                disabled={pending}
-                onChange={(e) => {
-                  const next = e.target.checked;
+                onChange={(next) => {
                   setAllowAdmin((prev) => ({ ...prev, [c.id]: next }));
                   handle(() => toggleAdminSignup(c.id, next));
                 }}

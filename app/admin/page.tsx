@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 
 export default async function AdminDashboardPage() {
@@ -8,9 +9,10 @@ export default async function AdminDashboardPage() {
   } = await supabase.auth.getUser();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("college_id, colleges(name)")
+    .select("role, college_id, colleges(name)")
     .eq("id", user!.id)
     .single();
+  if (profile?.role === "super_admin") redirect("/super-admin");
 
   const collegeId = profile?.college_id;
 

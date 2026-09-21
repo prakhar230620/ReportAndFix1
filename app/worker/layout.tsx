@@ -26,7 +26,11 @@ export default async function WorkerLayout({
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      <NavBar brand="My Tasks" items={[{ href: "/worker", label: "Tasks" }, { href: "/", label: "Home" }]} />
+      <NavBar
+        brand="My Tasks"
+        notify={{ role: "worker", userId: user.id }}
+        items={[{ href: "/worker", label: "Tasks" }, { href: "/", label: "Home" }]}
+      />
       <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6">{children}</main>
     </div>
   );

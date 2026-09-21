@@ -47,9 +47,9 @@ export default function ReportForm({
   const [step, setStep] = useState<Step>({ name: "form" });
 
   async function handleFiles(selected: FileList | null) {
-    if (!selected) return;
+    if (!selected || selected.length === 0) return;
     const arr = Array.from(selected);
-    if (arr.length > MAX_FILES) {
+    if (files.length + arr.length > MAX_FILES) {
       setFileError(`Max ${MAX_FILES} photos.`);
       return;
     }
@@ -70,10 +70,14 @@ export default function ReportForm({
     setCompressing(true);
     try {
       const compressed = await Promise.all(arr.map((f) => compressImage(f)));
-      setFiles(compressed);
+      setFiles((prev) => [...prev, ...compressed]);
     } finally {
       setCompressing(false);
     }
+  }
+
+  function removeFile(index: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleCheckDuplicates() {
@@ -314,20 +318,37 @@ export default function ReportForm({
       <label className="flex flex-col gap-1 text-sm">
         Photos (optional, up to {MAX_FILES})
         <input
+          key={files.length}
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          multiple
-          disabled={compressing}
+          capture="environment"
+          disabled={compressing || files.length >= MAX_FILES}
           onChange={(e) => handleFiles(e.target.files)}
           className="text-sm"
         />
       </label>
       {fileError && <p className="text-sm text-red-600">{fileError}</p>}
       {compressing && (
-        <p className="text-xs text-neutral-500">Compressing photo(s)…</p>
+        <p className="text-xs text-neutral-500">Compressing photo…</p>
       )}
-      {!compressing && files.length > 0 && (
-        <p className="text-xs text-neutral-500">{files.length} photo(s) selected.</p>
+      {files.length > 0 && (
+        <ul className="flex flex-col gap-1">
+          {files.map((f, i) => (
+            <li
+              key={i}
+              className="flex items-center justify-between rounded-md bg-neutral-100 px-2 py-1 text-xs text-neutral-600"
+            >
+              <span>Photo {i + 1} ({(f.size / 1024).toFixed(0)} KB)</span>
+              <button
+                type="button"
+                onClick={() => removeFile(i)}
+                className="text-red-600"
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
 
       <p className="text-xs text-neutral-500">

@@ -114,7 +114,7 @@ export default async function FeedPage({
             <div key={issue.id} className="rounded-md border border-neutral-200 p-3 text-sm">
               {issue.thumbUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <img loading="lazy" decoding="async"
                   src={issue.thumbUrl}
                   alt=""
                   className="mb-2 h-32 w-full rounded-md object-cover"
@@ -161,7 +161,7 @@ export default async function FeedPage({
               <div className="mb-2 flex gap-2">
                 {issue.beforeUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={issue.beforeUrl}
                     alt="Before"
                     className="h-24 w-1/2 rounded-md object-cover"
@@ -169,7 +169,7 @@ export default async function FeedPage({
                 )}
                 {issue.afterUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={issue.afterUrl}
                     alt="After"
                     className="h-24 w-1/2 rounded-md object-cover"

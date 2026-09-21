@@ -48,6 +48,10 @@ export default async function AdminLayout({
     <div className="min-h-screen bg-neutral-50">
       <NavBar
         brand="ReportAndFix Admin"
+        notify={{
+          role: profile.role === "super_admin" ? "super_admin" : "college_admin",
+          collegeId: profile.college_id,
+        }}
         items={[
           { href: "/", label: "Home" },
           { href: "/admin/queue", label: "Queue", badge: queuePendingCount },
