@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Toggle from "@/app/components/Toggle";
+import { ButtonSpinner } from "@/app/components/Spinner";
 import {
   approveWorker,
   rejectRequest,
@@ -139,8 +140,8 @@ function WorkerRequestRow({
 }) {
   const [deptId, setDeptId] = useState("");
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-neutral-200 p-3 text-sm">
-      <span>{req.profiles?.display_name ?? "Unnamed"}</span>
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-200 bg-white p-3 text-sm shadow-sm">
+      <span className="font-medium text-neutral-800">{req.profiles?.display_name ?? "Unnamed"}</span>
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={deptId}
@@ -155,14 +156,15 @@ function WorkerRequestRow({
         <button
           disabled={pending}
           onClick={() => handle(() => approveWorker(req.id, deptId || null))}
-          className="rounded-md bg-neutral-900 px-3 py-1 text-xs text-white disabled:opacity-40"
+          className="flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-green-700 disabled:opacity-50"
         >
+          {pending && <ButtonSpinner />}
           Approve
         </button>
         <button
           disabled={pending}
           onClick={() => handle(() => rejectRequest(req.id, "Rejected by admin"))}
-          className="rounded-md border border-neutral-300 px-3 py-1 text-xs disabled:opacity-40"
+          className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
         >
           Reject
         </button>

@@ -4,6 +4,8 @@ import { useState } from "react";
 import BackButton from "@/app/components/BackButton";
 import Link from "next/link";
 import { compressImage } from "@/lib/compressImage";
+import { ButtonSpinner } from "@/app/components/Spinner";
+import Spinner from "@/app/components/Spinner";
 import {
   checkDuplicates,
   createComplaint,
@@ -205,6 +207,7 @@ export default function ReportForm({
   if (step.name === "uploading") {
     return (
       <Center>
+        <Spinner />
         <h1 className="text-xl font-semibold">Uploading photos…</h1>
         <p className="text-neutral-600">{step.progress}</p>
       </Center>
@@ -359,8 +362,9 @@ export default function ReportForm({
       <button
         disabled={busy || categories.length === 0}
         onClick={handleCheckDuplicates}
-        className="mt-2 rounded-md bg-neutral-900 px-4 py-2 text-white disabled:opacity-40"
+        className="mt-2 flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 font-medium text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-50"
       >
+        {busy && <ButtonSpinner />}
         {busy ? "Checking…" : "Continue"}
       </button>
     </main>

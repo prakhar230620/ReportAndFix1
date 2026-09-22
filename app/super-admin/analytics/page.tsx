@@ -40,6 +40,7 @@ export default async function SuperAdminAnalyticsPage() {
     db_size_bytes: number;
     storage_used_bytes: number;
     storage_object_count: number;
+    by_college: { college_id: string; college_name: string; bytes: number; object_count: number }[];
   } | null;
 
   function mb(bytes: number) {
@@ -75,6 +76,37 @@ export default async function SuperAdminAnalyticsPage() {
             check your Supabase dashboard for your project&apos;s exact current plan and limits,
             since these can change.
           </p>
+
+          {storage.by_college.some((c) => c.bytes > 0) && (
+            <div className="mt-4 border-t border-neutral-100 pt-3">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                By organisation
+              </h3>
+              <div className="flex flex-col gap-1.5">
+                {storage.by_college
+                  .filter((c) => c.bytes > 0)
+                  .map((c) => {
+                    const pct = storage.storage_used_bytes
+                      ? Math.round((c.bytes / storage.storage_used_bytes) * 100)
+                      : 0;
+                    return (
+                      <div key={c.college_id} className="flex items-center gap-3">
+                        <span className="w-32 shrink-0 truncate text-neutral-700">{c.college_name}</span>
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-neutral-100">
+                          <div
+                            className="h-full rounded-full bg-blue-500"
+                            style={{ width: `${Math.max(pct, 2)}%` }}
+                          />
+                        </div>
+                        <span className="w-24 shrink-0 text-right text-xs text-neutral-500">
+                          {mb(c.bytes)} MB ({c.object_count})
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

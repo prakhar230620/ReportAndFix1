@@ -91,8 +91,10 @@ export default async function HomePage() {
   if (isSuperAdmin && pendingCount > 0)
     links.push({ href: "/super-admin/admin-requests", label: "Admin Requests", sub: "Admin access waiting on you", badge: pendingCount });
   if (isWorker) links.push({ href: "/worker", label: "My Tasks", sub: "Assigned work", badge: taskCount });
-  links.push({ href: "/locations", label: "Report an issue", sub: "Scan a QR or pick a location" });
-  links.push({ href: "/feed", label: "Feed", sub: "Open and completed issues" });
+  if (!isSuperAdmin) {
+    links.push({ href: "/locations", label: "Report an issue", sub: "Scan a QR or pick a location" });
+    links.push({ href: "/feed", label: "Feed", sub: "Open and completed issues" });
+  }
   links.push({ href: "/profile", label: "Profile", sub: "Account settings" });
 
   return (
