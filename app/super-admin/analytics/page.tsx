@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { cached } from "@/lib/cache";
 
 export default async function SuperAdminAnalyticsPage() {
   const supabase = await createClient();
@@ -18,10 +19,12 @@ export default async function SuperAdminAnalyticsPage() {
 
   const perCollege = await Promise.all(
     (colleges ?? []).map(async (c) => {
-      const { data } = await supabase.rpc("get_college_analytics" as never, {
-        p_college_id: c.id,
-      } as never);
-      const stats = data as any;
+      const stats = await cached(`analytics:college:${c.id}`, 60, async () => {
+        const { data } = await supabase.rpc("get_college_analytics" as never, {
+          p_college_id: c.id,
+        } as never);
+        return data as any;
+      });
       return {
         id: c.id,
         name: c.name,
@@ -35,7 +38,10 @@ export default async function SuperAdminAnalyticsPage() {
     })
   );
 
-  const { data: storageRaw } = await supabase.rpc("get_storage_usage" as never);
+  const storageRaw = await cached("analytics:storage-usage", 60, async () => {
+    const { data } = await supabase.rpc("get_storage_usage" as never);
+    return data;
+  });
   const storage = storageRaw as {
     db_size_bytes: number;
     storage_used_bytes: number;

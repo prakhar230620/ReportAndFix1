@@ -16,7 +16,7 @@ export default async function AdminLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, college_id")
+    .select("role, college_id, colleges(logo_url)")
     .eq("id", user.id)
     .single();
 
@@ -48,6 +48,7 @@ export default async function AdminLayout({
     <div className="min-h-screen bg-neutral-50">
       <NavBar
         brand="ReportAndFix Admin"
+        logoUrl={(profile.colleges as any)?.logo_url}
         notify={{
           role: profile.role === "super_admin" ? "super_admin" : "college_admin",
           collegeId: profile.college_id,

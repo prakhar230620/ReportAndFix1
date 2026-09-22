@@ -28,7 +28,7 @@ export default async function HomePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, role, college_id, colleges(name)")
+    .select("display_name, role, college_id, colleges(name, logo_url)")
     .eq("id", user.id)
     .single();
 
@@ -99,13 +99,23 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
-      <div>
-        <h1 className="text-2xl font-semibold text-neutral-900">
-          Welcome, {profile?.display_name ?? user.email}
-        </h1>
-        <p className="text-sm text-neutral-500">
-          {roleLabel(profile?.role)} · {(profile?.colleges as any)?.name}
-        </p>
+      <div className="flex items-center gap-3">
+        {(profile?.colleges as any)?.logo_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={(profile?.colleges as any).logo_url}
+            alt=""
+            className="h-10 w-10 rounded-md border border-neutral-200 object-contain"
+          />
+        )}
+        <div>
+          <h1 className="text-2xl font-semibold text-neutral-900">
+            Welcome, {profile?.display_name ?? user.email}
+          </h1>
+          <p className="text-sm text-neutral-500">
+            {roleLabel(profile?.role)} · {(profile?.colleges as any)?.name}
+          </p>
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">

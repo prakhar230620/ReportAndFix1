@@ -3,6 +3,7 @@ import VoteButton from "@/app/components/VoteButton";
 import ShareButton from "@/app/components/ShareButton";
 import BackButton from "@/app/components/BackButton";
 import Link from "next/link";
+import { cached } from "@/lib/cache";
 
 export const maxDuration = 30;
 
@@ -65,8 +66,18 @@ export default async function FeedPage({
   }
 
   const [{ data: openIssues }, { data: completedIssues }, votedRows] = await Promise.all([
-    supabase.rpc("get_today_open_issues" as never, { p_college_id: collegeId } as never),
-    supabase.rpc("get_completed_issues" as never, { p_college_id: collegeId } as never),
+    cached(`feed:open:${collegeId}`, 20, async () => {
+      const { data } = await supabase.rpc("get_today_open_issues" as never, {
+        p_college_id: collegeId,
+      } as never);
+      return data;
+    }).then((data) => ({ data })),
+    cached(`feed:completed:${collegeId}`, 30, async () => {
+      const { data } = await supabase.rpc("get_completed_issues" as never, {
+        p_college_id: collegeId,
+      } as never);
+      return data;
+    }).then((data) => ({ data })),
     user
       ? supabase.from("complaint_votes").select("complaint_id").eq("user_id", user.id)
       : Promise.resolve({ data: [] as { complaint_id: string }[] }),

@@ -16,7 +16,7 @@ export default async function WorkerLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, college_id")
+    .select("role, college_id, colleges(logo_url)")
     .eq("id", user.id)
     .single();
 
@@ -28,6 +28,7 @@ export default async function WorkerLayout({
     <div className="min-h-screen bg-neutral-50">
       <NavBar
         brand="My Tasks"
+        logoUrl={(profile.colleges as any)?.logo_url}
         notify={{ role: "worker", userId: user.id, collegeId: profile.college_id }}
         items={[{ href: "/worker", label: "Tasks" }, { href: "/", label: "Home" }]}
       />

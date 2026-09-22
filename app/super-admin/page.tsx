@@ -15,6 +15,7 @@ export default async function SuperAdminPage() {
       id: string;
       name: string;
       subscription_status: string;
+      logo_url: string | null;
       user_count: number;
       worker_count: number;
       issue_count: number;

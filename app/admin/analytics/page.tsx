@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { cached } from "@/lib/cache";
 
 import AnalyticsCharts from "./AnalyticsCharts";
 
@@ -25,9 +26,19 @@ export default async function AnalyticsPage() {
     .eq("id", user!.id)
     .single();
 
-  const { data, error } = await supabase.rpc("get_college_analytics" as never, {
-    p_college_id: profile?.college_id,
-  } as never);
+  let data: any = null;
+  let error: { message: string } | null = null;
+  try {
+    data = await cached(`analytics:college:${profile?.college_id}`, 60, async () => {
+      const res = await supabase.rpc("get_college_analytics" as never, {
+        p_college_id: profile?.college_id,
+      } as never);
+      if (res.error) throw res.error;
+      return res.data;
+    });
+  } catch (e) {
+    error = e as { message: string };
+  }
 
   if (error || !data) {
     return <p className="text-sm text-red-600">Failed to load analytics: {error?.message}</p>;

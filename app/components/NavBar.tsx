@@ -9,10 +9,12 @@ export default function NavBar({
   brand,
   items,
   notify,
+  logoUrl,
 }: {
   brand: string;
   items: { href: string; label: string; badge?: number }[];
   notify?: { role: "college_admin" | "super_admin" | "worker"; collegeId?: string | null; userId?: string };
+  logoUrl?: string | null;
 }) {
   const pathname = usePathname();
 
@@ -21,6 +23,10 @@ export default function NavBar({
       <nav className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <BackButton fallbackHref="/" />
+          {logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="" className="h-6 w-6 rounded object-contain" />
+          )}
           <span className="font-semibold text-neutral-900">{brand}</span>
           {notify && (
             <NotificationBell role={notify.role} collegeId={notify.collegeId} userId={notify.userId} />
