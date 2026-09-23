@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Plus, Pencil, Ban, CheckCircle2, Trash2, UserMinus } from "lucide-react";
+import { ButtonSpinner } from "@/app/components/Spinner";
 import {
   createDepartment,
   renameDepartment,
@@ -57,9 +58,9 @@ export default function DepartmentsClient({
             setNewName("");
             run(() => createDepartment(n));
           }}
-          className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+          className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
         >
-          <Plus size={15} /> Add
+          {pending ? <ButtonSpinner /> : <Plus size={15} />} Add
         </button>
       </div>
 

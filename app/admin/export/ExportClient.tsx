@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ButtonSpinner } from "@/app/components/Spinner";
 
 export default function ExportClient() {
   const [busy, setBusy] = useState(false);
@@ -32,8 +33,9 @@ export default function ExportClient() {
       <button
         onClick={handleExport}
         disabled={busy}
-        className="self-start rounded-md bg-neutral-900 px-4 py-2 text-sm text-white disabled:opacity-40"
+        className="flex items-center gap-2 self-start rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
       >
+        {busy && <ButtonSpinner />}
         {busy ? "Generating…" : "Generate CSV export"}
       </button>
       {result && (

@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { ButtonSpinner } from "@/app/components/Spinner";
 import {
   ChevronRight,
   ChevronDown,
@@ -302,6 +303,7 @@ export default function LocationExplorer({
                   <ActionButton
                     onClick={() => run(() => assignQr(selected.id))}
                     icon={<QrCode size={14} />}
+                    loading={pending}
                   >
                     Assign QR
                   </ActionButton>
@@ -320,6 +322,7 @@ export default function LocationExplorer({
                   <ActionButton
                     onClick={() => run(() => archiveLocation(selected.id))}
                     icon={<Archive size={14} />}
+                    loading={pending}
                   >
                     Archive
                   </ActionButton>
@@ -327,6 +330,7 @@ export default function LocationExplorer({
                   <ActionButton
                     onClick={() => run(() => unarchiveLocation(selected.id))}
                     icon={<ArchiveRestore size={14} />}
+                    loading={pending}
                   >
                     Unarchive
                   </ActionButton>
@@ -344,6 +348,7 @@ export default function LocationExplorer({
                   }}
                   icon={<Trash2 size={14} />}
                   danger
+                  loading={pending}
                 >
                   Delete
                 </ActionButton>
@@ -531,12 +536,14 @@ function ActionButton({
   onClick,
   primary,
   danger,
+  loading,
 }: {
   children: React.ReactNode;
   icon: React.ReactNode;
   onClick: () => void;
   primary?: boolean;
   danger?: boolean;
+  loading?: boolean;
 }) {
   const cls = primary
     ? "bg-blue-600 text-white hover:bg-blue-700"
@@ -546,9 +553,10 @@ function ActionButton({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium ${cls}`}
+      disabled={loading}
+      className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium disabled:opacity-60 ${cls}`}
     >
-      {icon}
+      {loading ? <ButtonSpinner className={primary ? "" : "border-neutral-300 border-t-neutral-600"} /> : icon}
       {children}
     </button>
   );

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Toggle from "@/app/components/Toggle";
+import { ButtonSpinner } from "@/app/components/Spinner";
 import { approveAdmin, rejectAdminRequest, toggleAdminSignup } from "./actions";
 
 type Req = {
@@ -67,14 +68,15 @@ export default function AdminRequestsClient({
                   <button
                     disabled={pending || !fullyEndorsed}
                     onClick={() => handle(() => approveAdmin(r.id))}
-                    className="rounded-md bg-neutral-900 px-3 py-1 text-xs text-white disabled:opacity-40"
+                    className="flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-green-700 disabled:opacity-40"
                   >
+                    {pending && <ButtonSpinner />}
                     Approve
                   </button>
                   <button
                     disabled={pending}
                     onClick={() => handle(() => rejectAdminRequest(r.id, "Rejected by super admin"))}
-                    className="rounded-md border border-neutral-300 px-3 py-1 text-xs disabled:opacity-40"
+                    className="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40"
                   >
                     Reject
                   </button>
