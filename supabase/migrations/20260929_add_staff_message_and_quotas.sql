@@ -24,7 +24,7 @@ SELECT cron.schedule(
   '0 1 * * *',
   $$
   SELECT net.http_post(
-    url := 'https://reportandfix.com/api/cron',
+    url := 'https://reportandfix-nine.vercel.app/api/cron',
     headers := '{"Content-Type": "application/json", "x-cron-secret": "Qtr4UqmrTklx5PF3O2GRa0PfBqBmYcerbIVNyJsBlZ8vjwnB3cqFzajhBU4lWIMl"}'::jsonb,
     body := '{}'::jsonb
   );
