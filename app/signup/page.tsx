@@ -7,15 +7,37 @@ import Link from "next/link";
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; next?: string }>;
+  searchParams: Promise<{ error?: string; next?: string; qr?: string; org?: string }>;
 }) {
-  const { error, next } = await searchParams;
+  const { error, next, qr, org } = await searchParams;
   const supabase = await createClient();
+
+  let prefillCode = "";
+  let prefillOrg = org ?? "";
+
+  if (qr) {
+    const { data: joinRow } = await supabase
+      .from("org_join_codes")
+      .select("code, college_id")
+      .eq("qr_token", qr)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (joinRow) {
+      prefillCode = joinRow.code;
+      if (!prefillOrg) prefillOrg = joinRow.college_id;
+    }
+  }
 
   const { data: colleges } = await supabase
     .from("colleges")
-    .select("id, name, allow_worker_signup, allow_admin_signup")
+    .select("id, name, allow_worker_signup, allow_admin_signup, subscription_status")
     .order("name");
+
+  const activeColleges = (colleges ?? []).filter(
+    (c) => !c.subscription_status?.startsWith("pending_deletion") && c.subscription_status !== "suspended"
+  );
+
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
@@ -40,9 +62,12 @@ export default async function SignupPage({
         </label>
 
         <CollegeRoleFields
-          colleges={colleges ?? []}
+          colleges={activeColleges}
+          defaultCollegeId={prefillOrg}
+          defaultJoinCode={prefillCode}
           approvalNote="Worker and Admin access requires approval after signup."
         />
+
 
         <label className="flex flex-col gap-1 text-sm">
           Email
@@ -65,13 +90,30 @@ export default async function SignupPage({
           />
         </label>
 
+        <label className="flex items-start gap-2 text-xs text-neutral-600 cursor-pointer pt-1">
+          <input
+            type="checkbox"
+            name="accept_terms"
+            required
+            className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+          />
+          <span>
+            I agree to the{" "}
+            <Link href="/terms" target="_blank" className="font-semibold text-blue-600 underline">
+              Terms of Service
+            </Link>{" "}
+            and Data Retention Policies.
+          </span>
+        </label>
+
         <button
           type="submit"
-          className="mt-2 rounded-md bg-neutral-900 px-4 py-2 text-white"
+          className="mt-2 rounded-md bg-neutral-900 px-4 py-2 text-white font-medium hover:bg-neutral-800 transition"
         >
           Sign up
         </button>
       </form>
+
 
       <div className="my-4 flex items-center gap-3 text-xs text-neutral-400">
         <div className="h-px flex-1 bg-neutral-200" />

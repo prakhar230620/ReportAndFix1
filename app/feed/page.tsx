@@ -4,6 +4,7 @@ import ShareButton from "@/app/components/ShareButton";
 import BackButton from "@/app/components/BackButton";
 import Link from "next/link";
 import { cached } from "@/lib/cache";
+import { getMediaUrl } from "@/lib/media";
 
 export const maxDuration = 30;
 
@@ -85,28 +86,16 @@ export default async function FeedPage({
 
   const votedSet = new Set((votedRows.data ?? []).map((r) => r.complaint_id));
 
-  async function signedUrl(path: string | null) {
-    if (!path) return null;
-    const { data } = await supabase.storage
-      .from("complaint-media")
-      .createSignedUrl(path, 3600);
-    return data?.signedUrl ?? null;
-  }
+  const openWithThumbs = (openIssues ?? []).map((issue: any) => ({
+    ...issue,
+    thumbUrl: getMediaUrl(issue.before_media_path),
+  }));
 
-  const openWithThumbs = await Promise.all(
-    (openIssues ?? []).map(async (issue: any) => ({
-      ...issue,
-      thumbUrl: await signedUrl(issue.before_media_path),
-    }))
-  );
-
-  const completedWithImages = await Promise.all(
-    (completedIssues ?? []).map(async (issue: any) => ({
-      ...issue,
-      beforeUrl: await signedUrl(issue.before_media_path),
-      afterUrl: await signedUrl(issue.after_media_path),
-    }))
-  );
+  const completedWithImages = (completedIssues ?? []).map((issue: any) => ({
+    ...issue,
+    beforeUrl: getMediaUrl(issue.before_media_path),
+    afterUrl: getMediaUrl(issue.after_media_path),
+  }));
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col gap-8 px-6 py-8 pb-28">
@@ -121,7 +110,7 @@ export default async function FeedPage({
       <section>
         <h2 className="mb-3 text-lg font-semibold">Open Issues</h2>
         <div className="flex flex-col gap-3">
-          {openWithThumbs.map((issue) => (
+          {openWithThumbs.map((issue: any) => (
             <div key={issue.id} className="rounded-md border border-neutral-200 p-3 text-sm">
               {issue.thumbUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -163,7 +152,7 @@ export default async function FeedPage({
       <section>
         <h2 className="mb-3 text-lg font-semibold">Completed Issues</h2>
         <div className="flex flex-col gap-3">
-          {completedWithImages.map((issue) => (
+          {completedWithImages.map((issue: any) => (
             <Link
               key={issue.id}
               href={`/issues/${issue.public_id}`}

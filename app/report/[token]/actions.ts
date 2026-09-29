@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export type DuplicateCandidate = {
   id: string;
@@ -117,8 +118,51 @@ export async function createComplaint(params: {
     return { error: "This location is not available for reporting." };
   }
 
+  // Check if organisation is frozen
+  const { data: college } = await supabase
+    .from("colleges")
+    .select("is_frozen")
+    .eq("id", location.college_id)
+    .single();
+
+  if (college?.is_frozen) {
+    return { error: "There was some technical issue. Please connect to your Organisational Admin or Departmental Admin." };
+  }
+
   if (!params.title.trim()) return { error: "Title is required." };
   if (!params.categoryId) return { error: "Category is required." };
+
+  // ── Plan Monthly Complaint Quota Enforcement ──
+  const adminClient = createAdminClient();
+  const { data: sub } = await adminClient
+    .from("org_subscriptions")
+    .select("status, plans(max_complaints_per_month)")
+    .eq("college_id", location.college_id)
+    .in("status", ["active", "trial", "grace", "manually_assigned"])
+    .maybeSingle();
+
+  const maxMonthly =
+    sub && (sub.plans as any)?.max_complaints_per_month !== undefined
+      ? (sub.plans as any).max_complaints_per_month
+      : 100; // Default starter plan quota
+
+  if (maxMonthly !== -1) {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const { count: monthlyCount } = await adminClient
+      .from("complaints")
+      .select("id", { count: "exact", head: true })
+      .eq("college_id", location.college_id)
+      .gte("created_at", startOfMonth.toISOString());
+
+    if ((monthlyCount ?? 0) >= maxMonthly) {
+      return {
+        error: `Monthly complaint limit (${maxMonthly}) reached for this organisation. Please contact your administrator to upgrade your plan.`,
+      };
+    }
+  }
 
   const { data: complaint, error } = await supabase
     .from("complaints")

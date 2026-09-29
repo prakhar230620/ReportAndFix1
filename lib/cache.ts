@@ -3,7 +3,7 @@ import { Redis } from "@upstash/redis";
 let redis: Redis | null = null;
 let checked = false;
 
-function getRedis(): Redis | null {
+export function getRedis(): Redis | null {
   if (checked) return redis;
   checked = true;
   const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;

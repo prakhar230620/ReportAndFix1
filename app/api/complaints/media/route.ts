@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 import { imageSize } from "image-size";
 
@@ -75,15 +76,62 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Complaint not found" }, { status: 404 });
   }
 
+  // ── Plan Storage Quota Enforcement ──
+  const adminClient = createAdminClient();
+  const { data: sub } = await adminClient
+    .from("org_subscriptions")
+    .select("status, plans(max_storage_gb)")
+    .eq("college_id", complaint.college_id)
+    .in("status", ["active", "trial", "grace", "manually_assigned"])
+    .maybeSingle();
+
+  const maxStorageGb = sub && (sub.plans as any)?.max_storage_gb !== undefined ? (sub.plans as any).max_storage_gb : 2; // Starter default (2 GB)
+  if (maxStorageGb !== -1) {
+    const maxStorageBytes = maxStorageGb * 1024 * 1024 * 1024;
+    try {
+      const { data: storageData } = await adminClient.rpc("get_storage_usage" as any);
+      const collegeUsage = (storageData as any)?.by_college?.find(
+        (c: any) => c.college_id === complaint.college_id
+      );
+      const currentBytes = collegeUsage?.bytes ?? 0;
+      if (currentBytes + file.size > maxStorageBytes) {
+        return NextResponse.json(
+          {
+            error: `Storage quota exceeded for your organisation's plan (${maxStorageGb} GB). Upgrade plan in Admin > Billing to upload more media.`,
+          },
+          { status: 403 }
+        );
+      }
+    } catch (quotaErr) {
+      console.warn("[media-upload] Storage quota check skipped due to RPC error:", quotaErr);
+    }
+  }
+
   const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
   const storagePath = `${complaint.college_id}/${complaintId}/${crypto.randomUUID()}.${ext}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from("complaint-media")
-    .upload(storagePath, buffer, { contentType: file.type });
+  // Upload to Backblaze B2
+  try {
+    const { uploadToB2 } = await import("@/lib/b2");
+    await uploadToB2(storagePath, buffer, file.type);
+  } catch (err: any) {
+    console.error("Backblaze B2 upload error:", err);
+    return NextResponse.json({ error: err.message || "Failed to upload to Backblaze B2." }, { status: 500 });
+  }
 
-  if (uploadError) {
-    return NextResponse.json({ error: uploadError.message }, { status: 400 });
+  // Pre-warm in Redis cache so first view doesn't incur storage egress
+  try {
+    const { getRedis } = await import("@/lib/cache");
+    const redis = getRedis();
+    if (redis) {
+      await redis.set(
+        `media:v1:${storagePath}`,
+        { base64: buffer.toString("base64"), contentType: file.type },
+        { ex: 60 * 60 * 24 * 7 }
+      );
+    }
+  } catch (err) {
+    console.warn("Redis pre-cache warning:", err);
   }
 
   const { data: mediaRow, error: mediaError } = await supabase

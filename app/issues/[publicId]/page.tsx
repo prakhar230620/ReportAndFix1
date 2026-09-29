@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import VoteButton from "@/app/components/VoteButton";
 import ShareButton from "@/app/components/ShareButton";
 import BackButton from "@/app/components/BackButton";
+import { getMediaUrl } from "@/lib/media";
 
 export default async function IssueDetailPage({
   params,
@@ -58,14 +59,10 @@ export default async function IssueDetailPage({
         : Promise.resolve({ data: null }),
     ]);
 
-  const mediaWithUrls = await Promise.all(
-    (media ?? []).map(async (m) => {
-      const { data } = await supabase.storage
-        .from("complaint-media")
-        .createSignedUrl(m.storage_path, 3600);
-      return { ...m, url: data?.signedUrl ?? null };
-    })
-  );
+  const mediaWithUrls = (media ?? []).map((m) => ({
+    ...m,
+    url: getMediaUrl(m.storage_path),
+  }));
 
   const category = (complaint as any).categories?.name;
   const { data: locationPath } = await supabase.rpc("location_full_path" as never, {

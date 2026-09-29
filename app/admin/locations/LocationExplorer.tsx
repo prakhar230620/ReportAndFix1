@@ -81,11 +81,55 @@ export default function LocationExplorer({
     return chain;
   };
 
+  function breadcrumb(id: string): Loc[] {
+    const chain: Loc[] = [];
+    let cur = byId.get(id);
+    while (cur) {
+      chain.unshift(cur);
+      cur = cur.parent_id ? byId.get(cur.parent_id) : undefined;
+    }
+    return chain;
+  }
+  function pathOf(id: string): string {
+    return breadcrumb(id)
+      .map((l) => l.name)
+      .join(" / ");
+  }
+
+  // Multi-keyword fuzzy search matching name, location_code, and full path
+  const matchedLocations = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    const terms = q.split(/\s+/).filter(Boolean);
+
+    return locations
+      .filter((loc) => {
+        if (!showArchived && loc.archived) return false;
+        const p = pathOf(loc.id).toLowerCase();
+        const n = loc.name.toLowerCase();
+        const c = (loc.location_code || "").toLowerCase();
+        const org = orgName.toLowerCase();
+        const full = `${org} / ${p}`;
+        return terms.every((t) => full.includes(t) || n.includes(t) || c.includes(t));
+      })
+      .map((loc) => {
+        let score = 0;
+        const n = loc.name.toLowerCase();
+        if (n === q) score += 100;
+        else if (n.startsWith(q)) score += 50;
+        else if (n.includes(q)) score += 30;
+        if (loc.location_code?.toLowerCase().includes(q)) score += 20;
+        if (pathOf(loc.id).toLowerCase().includes(q)) score += 10;
+        return { loc, score, path: pathOf(loc.id) };
+      })
+      .sort((a, b) => b.score - a.score);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, locations, showArchived, orgName]);
+
   const searchMatches = useMemo(() => {
     if (!search.trim()) return null;
-    const q = search.toLowerCase();
-    return new Set(locations.filter((l) => l.name.toLowerCase().includes(q)).map((l) => l.id));
-  }, [search, locations]);
+    return new Set(matchedLocations.map((item) => item.loc.id));
+  }, [search, matchedLocations]);
 
   const forceExpanded = useMemo(() => {
     if (!searchMatches) return null;
@@ -94,6 +138,17 @@ export default function LocationExplorer({
     return set;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchMatches]);
+
+  const [viewMode, setViewMode] = useState<"results" | "tree">("results");
+
+  function selectFromSearch(id: string) {
+    setSelectedId(id);
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      ancestorsOf(id).forEach((a) => next.add(a));
+      return next;
+    });
+  }
 
   function toggle(id: string) {
     setExpanded((prev) => {
@@ -117,21 +172,6 @@ export default function LocationExplorer({
     ? locations.filter((l) => l.parent_id === selected.id && !l.archived).length
     : 0;
   const complaintCount = selected ? complaintCounts[selected.id] ?? 0 : 0;
-
-  function breadcrumb(id: string): Loc[] {
-    const chain: Loc[] = [];
-    let cur = byId.get(id);
-    while (cur) {
-      chain.unshift(cur);
-      cur = cur.parent_id ? byId.get(cur.parent_id) : undefined;
-    }
-    return chain;
-  }
-  function pathOf(id: string): string {
-    return breadcrumb(id)
-      .map((l) => l.name)
-      .join(" / ");
-  }
 
   const total = locations.filter((l) => !l.archived).length;
   const withQr = locations.filter((l) => !l.archived && l.qr_token).length;
@@ -177,18 +217,33 @@ export default function LocationExplorer({
         <SummaryCard label="Archived" value={archivedCount} tone="amber" />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[340px_1fr]">
-        {/* Tree */}
-        <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
+        {/* Tree / Search Sidebar */}
+        <div className="rounded-xl border border-neutral-200 bg-white shadow-sm flex flex-col">
           <div className="border-b border-neutral-100 p-3">
             <div className="relative">
               <Search size={15} className="absolute left-2.5 top-2.5 text-neutral-400" />
               <input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search locations…"
-                className="w-full rounded-md border border-neutral-300 py-1.5 pl-8 pr-2 text-sm"
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  if (e.target.value.trim() && viewMode !== "results") {
+                    setViewMode("results");
+                  }
+                }}
+                placeholder="Search by room, block, floor (e.g. Block B, Ground)..."
+                className="w-full rounded-md border border-neutral-300 py-1.5 pl-8 pr-7 text-sm placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none"
               />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2 top-2 text-neutral-400 hover:text-neutral-700"
+                  title="Clear search"
+                >
+                  <X size={15} />
+                </button>
+              )}
             </div>
             <button
               onClick={() => setAddModal({ parentId: null })}
@@ -196,7 +251,7 @@ export default function LocationExplorer({
             >
               <Plus size={15} /> Add Location
             </button>
-            <label className="mt-2 flex items-center gap-1.5 text-xs text-neutral-500">
+            <label className="mt-2 flex items-center gap-1.5 text-xs text-neutral-500 cursor-pointer">
               <input
                 type="checkbox"
                 checked={showArchived}
@@ -205,31 +260,135 @@ export default function LocationExplorer({
               Show archived
             </label>
           </div>
-          <div className="max-h-[560px] overflow-y-auto p-2">
-            <div className="mb-1 flex items-center gap-1.5 px-1 py-1 text-sm font-semibold text-neutral-700">
-              <MapPin size={14} /> {orgName}
+
+          {search.trim() ? (
+            <div className="flex flex-col flex-1 min-h-0">
+              {/* Tab Selector between Search Results and Tree */}
+              <div className="flex border-b border-neutral-100 bg-neutral-50 p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("results")}
+                  className={`flex-1 rounded py-1 font-medium transition ${
+                    viewMode === "results"
+                      ? "bg-white text-neutral-900 shadow-sm"
+                      : "text-neutral-500 hover:text-neutral-800"
+                  }`}
+                >
+                  Results ({matchedLocations.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("tree")}
+                  className={`flex-1 rounded py-1 font-medium transition ${
+                    viewMode === "tree"
+                      ? "bg-white text-neutral-900 shadow-sm"
+                      : "text-neutral-500 hover:text-neutral-800"
+                  }`}
+                >
+                  Tree View
+                </button>
+              </div>
+
+              {viewMode === "results" ? (
+                <div className="max-h-[520px] overflow-y-auto p-2 flex flex-col gap-2">
+                  {matchedLocations.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-neutral-400">
+                      No locations found matching &ldquo;{search}&rdquo;
+                    </div>
+                  ) : (
+                    matchedLocations.map(({ loc, path }) => {
+                      const isSelected = selectedId === loc.id;
+                      const complaints = complaintCounts[loc.id] ?? 0;
+                      return (
+                        <button
+                          key={loc.id}
+                          type="button"
+                          onClick={() => selectFromSearch(loc.id)}
+                          className={`flex flex-col text-left rounded-lg border p-2.5 transition text-xs ${
+                            isSelected
+                              ? "border-blue-500 bg-blue-50/50 shadow-sm ring-1 ring-blue-500"
+                              : "border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <span className="font-semibold text-neutral-900 text-sm">
+                              <HighlightText text={loc.name} query={search} />
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {loc.qr_token ? (
+                                <span className="inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
+                                  QR Assigned
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500 border border-neutral-200">
+                                  No QR
+                                </span>
+                              )}
+                              {complaints > 0 && (
+                                <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
+                                  {complaints}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-[11px] text-neutral-500 leading-tight">
+                            <HighlightText text={`${orgName} › ${path.replace(/\s\/\s/g, " › ")}`} query={search} />
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              ) : (
+                <div className="max-h-[520px] overflow-y-auto p-2">
+                  <div className="mb-1 flex items-center gap-1.5 px-1 py-1 text-sm font-semibold text-neutral-700">
+                    <MapPin size={14} /> {orgName}
+                  </div>
+                  {childrenOf(null).map((loc) => (
+                    <TreeRow
+                      key={loc.id}
+                      loc={loc}
+                      depth={1}
+                      childrenOf={childrenOf}
+                      expanded={forceExpanded ? forceExpanded.has(loc.id) || expanded.has(loc.id) : expanded.has(loc.id)}
+                      allExpanded={forceExpanded}
+                      expandedSet={expanded}
+                      toggle={toggle}
+                      selectedId={selectedId}
+                      setSelectedId={setSelectedId}
+                      highlight={searchMatches}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-            {childrenOf(null).length === 0 && (
-              <p className="px-2 py-3 text-xs text-neutral-400">
-                No locations yet — add your first one above.
-              </p>
-            )}
-            {childrenOf(null).map((loc) => (
-              <TreeRow
-                key={loc.id}
-                loc={loc}
-                depth={1}
-                childrenOf={childrenOf}
-                expanded={forceExpanded ? forceExpanded.has(loc.id) || expanded.has(loc.id) : expanded.has(loc.id)}
-                allExpanded={forceExpanded}
-                expandedSet={expanded}
-                toggle={toggle}
-                selectedId={selectedId}
-                setSelectedId={setSelectedId}
-                highlight={searchMatches}
-              />
-            ))}
-          </div>
+          ) : (
+            <div className="max-h-[560px] overflow-y-auto p-2">
+              <div className="mb-1 flex items-center gap-1.5 px-1 py-1 text-sm font-semibold text-neutral-700">
+                <MapPin size={14} /> {orgName}
+              </div>
+              {childrenOf(null).length === 0 && (
+                <p className="px-2 py-3 text-xs text-neutral-400">
+                  No locations yet — add your first one above.
+                </p>
+              )}
+              {childrenOf(null).map((loc) => (
+                <TreeRow
+                  key={loc.id}
+                  loc={loc}
+                  depth={1}
+                  childrenOf={childrenOf}
+                  expanded={expanded.has(loc.id)}
+                  allExpanded={null}
+                  expandedSet={expanded}
+                  toggle={toggle}
+                  selectedId={selectedId}
+                  setSelectedId={setSelectedId}
+                  highlight={null}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Details */}
@@ -801,3 +960,30 @@ function MoveLocationModal({
     </ModalShell>
   );
 }
+
+function HighlightText({ text, query }: { text: string; query: string }) {
+  if (!query.trim()) return <span>{text}</span>;
+  const terms = query
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t.length > 0);
+  if (terms.length === 0) return <span>{text}</span>;
+  const escaped = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const regex = new RegExp(`(${escaped})`, "gi");
+  const parts = text.split(regex);
+  return (
+    <span>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} className="rounded bg-amber-100 font-semibold text-amber-950 px-0.5">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </span>
+  );
+}
+

@@ -3,7 +3,9 @@ export function roleLabel(role: string | null | undefined): string {
     case "super_admin":
       return "Super Admin";
     case "college_admin":
-      return "Admin";
+      return "Organisation Admin";
+    case "dept_admin":
+      return "Departmental Admin";
     case "worker":
       return "Worker";
     case "user":

@@ -27,11 +27,35 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  const pathname = request.nextUrl.pathname;
+
+  // Security guard: If user is in the middle of password reset,
+  // do not let them access the admin panel, worker tasks, or any other app routes
+  // until they complete the reset or explicitly return to login.
+  const isResetInProgress =
+    request.cookies.get("reset_password_in_progress")?.value === "1";
+
+  if (
+    isResetInProgress &&
+    !pathname.startsWith("/reset-password") &&
+    !pathname.startsWith("/auth") &&
+    !pathname.startsWith("/api")
+  ) {
+    if (pathname === "/login") {
+      response = NextResponse.next({ request });
+      response.cookies.delete("reset_password_in_progress");
+      return response;
+    }
+    // Force them back to reset-password page
+    const url = request.nextUrl.clone();
+    url.pathname = "/reset-password";
+    return NextResponse.redirect(url);
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname;
   const exempt =
     pathname.startsWith("/onboarding") ||
     pathname.startsWith("/auth") ||

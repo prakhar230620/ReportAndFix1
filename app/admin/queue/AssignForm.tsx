@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { assignComplaint, unassignComplaint } from "./actions";
+import { Building2, User, ArrowRight, UserCheck } from "lucide-react";
+import { ButtonSpinner } from "@/app/components/Spinner";
 
 type Worker = { id: string; display_name: string | null };
 type Department = { id: string; name: string };
@@ -12,26 +14,28 @@ export default function AssignForm({
   departments,
   currentWorkerId,
   currentWorkerName,
+  currentDepartmentId,
 }: {
   complaintId: string;
   workers: Worker[];
   departments: Department[];
   currentWorkerId?: string | null;
   currentWorkerName?: string | null;
+  currentDepartmentId?: string | null;
 }) {
-  const [workerId, setWorkerId] = useState(currentWorkerId || workers[0]?.id || "");
-  const [departmentId, setDepartmentId] = useState("");
+  const [departmentId, setDepartmentId] = useState(currentDepartmentId || (departments[0]?.id ?? ""));
+  const [workerId, setWorkerId] = useState(currentWorkerId || "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function handleAssign() {
-    if (!workerId) {
-      setError("Choose a worker.");
+    if (!departmentId && !workerId) {
+      setError("Please select a department or worker.");
       return;
     }
     startTransition(async () => {
       setError(null);
-      const result = await assignComplaint(complaintId, workerId, departmentId || null);
+      const result = await assignComplaint(complaintId, workerId || null, departmentId || null);
       if (result.error) setError(result.error);
     });
   }
@@ -41,60 +45,100 @@ export default function AssignForm({
       setError(null);
       const result = await unassignComplaint(complaintId);
       if (result.error) setError(result.error);
+      else {
+        setWorkerId("");
+        setDepartmentId("");
+      }
     });
   }
 
-  const isReassign = !!currentWorkerId;
+  const isAssigned = !!currentWorkerId || !!currentDepartmentId;
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-neutral-300 p-3">
-      <h3 className="text-sm font-semibold">
-        {isReassign ? "Reassign" : "Assign"}
-      </h3>
-      {isReassign && (
-        <p className="text-xs text-neutral-500">
-          Currently with <span className="font-medium">{currentWorkerName ?? "a worker"}</span>.
-          Picking someone else moves it away from them; they&apos;ll be notified either way.
-        </p>
-      )}
-      {error && <p className="text-xs text-red-600">{error}</p>}
-      <select
-        value={workerId}
-        onChange={(e) => setWorkerId(e.target.value)}
-        className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
-      >
-        {workers.length === 0 && <option value="">No workers in this organisation</option>}
-        {workers.map((w) => (
-          <option key={w.id} value={w.id}>{w.display_name ?? w.id}</option>
-        ))}
-      </select>
-      <select
-        value={departmentId}
-        onChange={(e) => setDepartmentId(e.target.value)}
-        className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
-      >
-        <option value="">No department</option>
-        {departments.map((d) => (
-          <option key={d.id} value={d.id}>{d.name}</option>
-        ))}
-      </select>
-      <div className="flex gap-2">
-        <button
-          onClick={handleAssign}
-          disabled={pending || workers.length === 0}
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-        >
-          {pending ? "Saving…" : isReassign ? "Reassign" : "Assign"}
-        </button>
-        {isReassign && (
+    <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
+        <h3 className="text-sm font-semibold text-neutral-900 flex items-center gap-1.5">
+          <Building2 className="h-4 w-4 text-blue-600" />
+          {isAssigned ? "Manage Assignment" : "Assign to Department / Worker"}
+        </h3>
+        {isAssigned && (
           <button
-            onClick={handleUnassign}
+            type="button"
             disabled={pending}
-            className="rounded-md border border-red-200 px-3 py-1.5 text-sm text-red-600 disabled:opacity-40"
+            onClick={handleUnassign}
+            className="text-xs text-red-600 hover:underline disabled:opacity-50"
           >
             Unassign
           </button>
         )}
+      </div>
+
+      {isAssigned && (
+        <div className="rounded-lg bg-blue-50/60 p-2.5 text-xs text-blue-900 border border-blue-100 flex items-center gap-2">
+          <UserCheck className="h-4 w-4 text-blue-600 shrink-0" />
+          <span>
+            {currentWorkerName
+              ? `Currently assigned to worker ${currentWorkerName}`
+              : "Assigned to Department · Awaiting Departmental Admin delegation"}
+          </span>
+        </div>
+      )}
+
+      {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {/* Department Select */}
+        <label className="flex flex-col gap-1 text-xs font-medium text-neutral-700">
+          <span className="flex items-center gap-1">
+            <Building2 className="h-3.5 w-3.5 text-neutral-500" />
+            Select Department (Routes to Dept Admin)
+          </span>
+          <select
+            value={departmentId}
+            onChange={(e) => setDepartmentId(e.target.value)}
+            className="rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none"
+          >
+            <option value="">-- No Department --</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {/* Worker Select (Optional direct assignment) */}
+        <label className="flex flex-col gap-1 text-xs font-medium text-neutral-700">
+          <span className="flex items-center gap-1">
+            <User className="h-3.5 w-3.5 text-neutral-500" />
+            Specific Worker (Optional override)
+          </span>
+          <select
+            value={workerId}
+            onChange={(e) => setWorkerId(e.target.value)}
+            className="rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none"
+          >
+            <option value="">Let Departmental Admin assign worker</option>
+            {workers.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.display_name ?? w.id}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="mt-1 flex justify-end">
+        <button
+          type="button"
+          onClick={handleAssign}
+          disabled={pending || (!departmentId && !workerId)}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-neutral-900 px-4 py-2 text-xs font-medium text-white shadow-sm hover:bg-neutral-800 disabled:opacity-40 transition-colors"
+        >
+          {pending && <ButtonSpinner />}
+          <ArrowRight className="h-3.5 w-3.5" />
+          {workerId ? "Assign Worker & Department" : "Assign to Department"}
+        </button>
       </div>
     </div>
   );

@@ -14,6 +14,11 @@ export async function signup(formData: FormData) {
   const requestedRole = String(formData.get("requested_role") ?? "user");
   const next = String(formData.get("next") ?? "") || "/";
 
+  const acceptTerms = formData.get("accept_terms");
+  if (!acceptTerms) {
+    redirect(`/signup?error=You+must+accept+the+Terms+of+Service+to+create+an+account.&next=${encodeURIComponent(next)}`);
+  }
+
   if (!email || !password || !collegeId) {
     redirect(`/signup?error=Missing+required+fields&next=${encodeURIComponent(next)}`);
   }
@@ -21,7 +26,35 @@ export async function signup(formData: FormData) {
     redirect(`/signup?error=Invalid+role&next=${encodeURIComponent(next)}`);
   }
 
+
   const supabase = await createClient();
+
+  // Check if college is frozen
+  const { data: college } = await supabase
+    .from("colleges")
+    .select("is_frozen")
+    .eq("id", collegeId)
+    .single();
+
+  if (college?.is_frozen) {
+    redirect(`/signup?error=This+organisation+is+temporarily+unavailable.+Contact+your+administrator.&next=${encodeURIComponent(next)}`);
+  }
+
+  // Validate join code if organisation has an active code
+  const joinCode = String(formData.get("join_code") ?? "").trim().toUpperCase();
+  const { data: activeJoinCode } = await supabase
+    .from("org_join_codes")
+    .select("code")
+    .eq("college_id", collegeId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (activeJoinCode) {
+    if (!joinCode || joinCode !== activeJoinCode.code) {
+      redirect(`/signup?error=Invalid+or+missing+organisation+join+code.+Please+ask+your+admin.&next=${encodeURIComponent(next)}`);
+    }
+  }
+
 
   const { error } = await supabase.auth.signUp({
     email,

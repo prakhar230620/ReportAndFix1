@@ -7,7 +7,7 @@ import { startProcessing, addProgressUpdate, finishTask } from "./actions";
 import { compressImage } from "@/lib/compressImage";
 
 const MAX_BYTES = 8 * 1024 * 1024;
-const MAX_FILES = 5;
+const MAX_FILES = 2;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export default function TaskActions({

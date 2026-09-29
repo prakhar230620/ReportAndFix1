@@ -34,13 +34,16 @@ export default async function SuperAdminLayout({
     <div className="min-h-screen bg-neutral-50">
       <NavBar
         brand="Super Admin"
+        showBrandLogo={true}
         notify={{ role: "super_admin" }}
         items={[
           { href: "/super-admin", label: "Overview" },
+          { href: "/super-admin/plans", label: "Plans Studio" },
           { href: "/super-admin/admin-requests", label: "Admin Requests", badge: pendingCount ?? 0 },
           { href: "/super-admin/analytics", label: "Analytics" },
           { href: "/super-admin/export", label: "Export" },
-          { href: "/", label: "Home" },
+          { href: "/docs", label: "Docs" },
+          { href: "/landing", label: "Landing" },
         ]}
       />
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">{children}</main>

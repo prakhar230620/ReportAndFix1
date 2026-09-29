@@ -41,6 +41,56 @@ export default async function ReportQrPage({
     );
   }
 
+  // Check if organisation is frozen
+  const { data: college } = await supabase
+    .from("colleges")
+    .select("id, name, is_frozen, contact_email")
+    .eq("id", location.college_id)
+    .single();
+
+  if (college?.is_frozen) {
+    const { data: admins } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("college_id", location.college_id)
+      .eq("role", "college_admin")
+      .limit(3);
+
+    return (
+      <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center gap-4 px-6 text-center">
+        <BackButton className="self-start" />
+        <div className="text-4xl">⚠️</div>
+        <h1 className="text-xl font-bold text-neutral-900">Service Temporarily Unavailable</h1>
+        <p className="text-sm text-neutral-600">
+          There was some technical issue. Please connect to your Organisational Admin or Departmental Admin.
+        </p>
+        {((admins && admins.length > 0) || college?.contact_email) && (
+          <div className="w-full mt-4 rounded-xl bg-neutral-50 p-4 border border-neutral-100 text-left">
+            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">
+              Contact Administration
+            </p>
+            <div className="space-y-2">
+              {admins?.map((adm, idx) => (
+                <div key={idx} className="flex justify-between items-center text-xs">
+                  <span className="font-medium text-neutral-800">{adm.display_name || "Admin"}</span>
+                </div>
+              ))}
+              {college?.contact_email && (
+                <div className="flex justify-between items-center text-xs pt-1 border-t border-neutral-200">
+                  <span className="text-neutral-500">Official Contact:</span>
+                  <a href={`mailto:${college.contact_email}`} className="text-blue-600 hover:underline">
+                    {college.contact_email}
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
+    );
+  }
+
+
   const {
     data: { user },
   } = await supabase.auth.getUser();

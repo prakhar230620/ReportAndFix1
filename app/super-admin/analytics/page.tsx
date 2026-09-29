@@ -1,13 +1,22 @@
 import { createClient } from "@/lib/supabase/server";
-import { cached } from "@/lib/cache";
+import AnalyticsDashboardClient, {
+  OrgAnalytics,
+  GlobalStorageStats,
+  OrgTableBreakdown,
+} from "./AnalyticsDashboardClient";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default async function SuperAdminAnalyticsPage() {
   const supabase = await createClient();
 
-  const { data: colleges, error: collegesError } = await supabase
-    .from("colleges")
-    .select("id, name, subscription_status")
-    .order("name");
+  const [{ data: colleges, error: collegesError }, { data: storageRaw, error: storageError }] =
+    await Promise.all([
+      supabase.from("colleges").select("id, name, subscription_status, category, logo_url").order("name"),
+      supabase.rpc("get_storage_usage" as never),
+    ]);
 
   if (collegesError) {
     return (
@@ -17,150 +26,145 @@ export default async function SuperAdminAnalyticsPage() {
     );
   }
 
-  const perCollege = await Promise.all(
-    (colleges ?? []).map(async (c) => {
-      const stats = await cached(`analytics:college:${c.id}`, 60, async () => {
-        const { data } = await supabase.rpc("get_college_analytics" as never, {
-          p_college_id: c.id,
-        } as never);
-        return data as any;
-      });
-      return {
-        id: c.id,
-        name: c.name,
-        status: c.subscription_status,
-        total: stats?.total ?? 0,
-        completed: stats?.completed ?? 0,
-        avgResolutionHours: stats?.avg_resolution_seconds
-          ? (stats.avg_resolution_seconds / 3600).toFixed(1)
-          : null,
-      };
-    })
+  const activeColleges = (colleges ?? []).filter(
+    (c) => !c.subscription_status?.startsWith("pending_deletion")
   );
 
-  const storageRaw = await cached("analytics:storage-usage", 60, async () => {
-    const { data } = await supabase.rpc("get_storage_usage" as never);
-    return data;
-  });
-  const storage = storageRaw as {
+  const storage = (storageRaw ?? {
+    db_size_bytes: 0,
+    storage_used_bytes: 0,
+    storage_object_count: 0,
+    by_college: [],
+  }) as {
     db_size_bytes: number;
     storage_used_bytes: number;
     storage_object_count: number;
     by_college: { college_id: string; college_name: string; bytes: number; object_count: number }[];
-  } | null;
+  };
 
-  function mb(bytes: number) {
-    return (bytes / (1024 * 1024)).toFixed(1);
-  }
-
-  const platformTotal = perCollege.reduce((s, c) => s + c.total, 0);
-  const platformCompleted = perCollege.reduce((s, c) => s + c.completed, 0);
-
-  return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">Platform Analytics</h1>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Card label="Organisations" value={String(colleges?.length ?? 0)} />
-        <Card label="Total complaints" value={String(platformTotal)} />
-        <Card label="Completed" value={String(platformCompleted)} />
-        <Card
-          label="Storage used"
-          value={storage ? `${mb(storage.storage_used_bytes)} MB` : "—"}
-        />
-      </div>
-
-      {storage && (
-        <div className="rounded-lg border border-neutral-200 bg-white p-4 text-sm shadow-sm">
-          <h2 className="mb-2 font-semibold">Supabase storage</h2>
-          <p className="text-neutral-600">
-            Database: {mb(storage.db_size_bytes)} MB · File storage:{" "}
-            {mb(storage.storage_used_bytes)} MB ({storage.storage_object_count} files)
-          </p>
-          <p className="mt-1 text-xs text-neutral-400">
-            Supabase&apos;s Free plan currently includes 500 MB database and 1 GB file storage —
-            check your Supabase dashboard for your project&apos;s exact current plan and limits,
-            since these can change.
-          </p>
-
-          {storage.by_college.some((c) => c.bytes > 0) && (
-            <div className="mt-4 border-t border-neutral-100 pt-3">
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                By organisation
-              </h3>
-              <div className="flex flex-col gap-1.5">
-                {storage.by_college
-                  .filter((c) => c.bytes > 0)
-                  .map((c) => {
-                    const pct = storage.storage_used_bytes
-                      ? Math.round((c.bytes / storage.storage_used_bytes) * 100)
-                      : 0;
-                    return (
-                      <div key={c.college_id} className="flex items-center gap-3">
-                        <span className="w-32 shrink-0 truncate text-neutral-700">{c.college_name}</span>
-                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-neutral-100">
-                          <div
-                            className="h-full rounded-full bg-blue-500"
-                            style={{ width: `${Math.max(pct, 2)}%` }}
-                          />
-                        </div>
-                        <span className="w-24 shrink-0 text-right text-xs text-neutral-500">
-                          {mb(c.bytes)} MB ({c.object_count})
-                        </span>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-neutral-100">
-            <tr>
-              <th className="p-2">Organisation</th>
-              <th className="p-2">Status</th>
-              <th className="p-2">Total</th>
-              <th className="p-2">Completed</th>
-              <th className="p-2">Avg resolution</th>
-            </tr>
-          </thead>
-          <tbody>
-            {perCollege.map((c) => (
-              <tr key={c.id} className="border-t border-neutral-100">
-                <td className="p-2 font-medium">{c.name}</td>
-                <td className="p-2">
-                  <span
-                    className={
-                      c.status === "active"
-                        ? "rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700"
-                        : "rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700"
-                    }
-                  >
-                    {c.status}
-                  </span>
-                </td>
-                <td className="p-2">{c.total}</td>
-                <td className="p-2">{c.completed}</td>
-                <td className="p-2">
-                  {c.avgResolutionHours ? `${c.avgResolutionHours} hrs` : "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+  const storageByCollegeMap = new Map(
+    (storage.by_college ?? []).map((s) => [s.college_id, { bytes: s.bytes, object_count: s.object_count }])
   );
-}
 
-function Card({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-3 shadow-sm">
-      <div className="text-2xl font-semibold text-blue-600">{value}</div>
-      <div className="text-xs text-neutral-500">{label}</div>
-    </div>
+  // Fetch detailed live metrics for each organisation in parallel
+  const orgDetails = await Promise.all(
+    activeColleges.map(async (c) => {
+      const [
+        { data: collegeAnalytics },
+        { data: complaintsList },
+        { data: profilesList },
+        { count: locationsCount },
+        { count: categoriesCount },
+      ] = await Promise.all([
+        supabase.rpc("get_college_analytics" as never, { p_college_id: c.id } as never),
+        supabase.from("complaints").select("id, status, resolution_seconds").eq("college_id", c.id),
+        supabase.from("profiles").select("id, role").eq("college_id", c.id),
+        supabase.from("locations").select("id", { count: "exact", head: true }).eq("college_id", c.id),
+        supabase.from("categories").select("id", { count: "exact", head: true }).eq("college_id", c.id),
+      ]);
+
+      const analytics = (collegeAnalytics ?? {}) as {
+        total?: number;
+        completed?: number;
+        avg_resolution_seconds?: number | null;
+        by_category?: { name: string; count: number }[];
+        by_worker?: { display_name: string; count: number; avg_resolution_seconds?: number }[];
+        by_location?: { name: string; count: number }[];
+        trend?: { day: string; count: number }[];
+      };
+
+      const storageItem = storageByCollegeMap.get(c.id) ?? { bytes: 0, object_count: 0 };
+      const complaints = complaintsList ?? [];
+      const profiles = profilesList ?? [];
+
+      const submitted = complaints.filter((x) => x.status === "submitted").length;
+      const assigned = complaints.filter((x) => x.status === "assigned").length;
+      const processing = complaints.filter((x) => x.status === "processing").length;
+      const completed = complaints.filter((x) => x.status === "completed").length;
+      const reopened = complaints.filter((x) => x.status === "reopened").length;
+
+      const usersCount = profiles.filter((x) => x.role === "user").length;
+      const workersCount = profiles.filter((x) => x.role === "worker").length;
+      const deptAdminsCount = profiles.filter((x) => x.role === "dept_admin").length;
+      const adminsCount = profiles.filter((x) => x.role === "college_admin").length;
+
+      // Estimate DB rows for this tenant (per table)
+      const complaintsCount = complaints.length;
+      const profilesCount = profiles.length;
+      const locCount = locationsCount ?? 0;
+      const catCount = categoriesCount ?? 0;
+      const mediaCount = storageItem.object_count; // files as "media" records
+
+      const dbRecords = complaintsCount + profilesCount + locCount + catCount;
+
+      const table_breakdown: OrgTableBreakdown[] = [
+        { table: "Complaints",  icon: "📋", records: complaintsCount },
+        { table: "Members",     icon: "👥", records: usersCount },
+        { table: "Workers",     icon: "🛠️", records: workersCount },
+        { table: "Dept Admins", icon: "🏢", records: deptAdminsCount },
+        { table: "Org Admins",  icon: "🔑", records: adminsCount },
+        { table: "Locations",   icon: "📍", records: locCount },
+        { table: "Categories",  icon: "🏷️", records: catCount },
+        { table: "Media Files", icon: "🖼️", records: mediaCount, isFile: true },
+      ];
+
+      return {
+        id: c.id,
+        name: c.name,
+        category: c.category ?? "college",
+        status: c.subscription_status ?? "active",
+        logo_url: c.logo_url,
+        file_bytes: storageItem.bytes,
+        file_count: storageItem.object_count,
+        db_records: dbRecords,
+        table_breakdown,
+        total_issues: complaints.length,
+        submitted_issues: submitted,
+        assigned_issues: assigned,
+        processing_issues: processing,
+        completed_issues: completed,
+        reopened_issues: reopened,
+        completion_rate: complaints.length > 0 ? Math.round((completed / complaints.length) * 100) : 0,
+        avg_resolution_seconds: analytics.avg_resolution_seconds ?? null,
+        users_count: usersCount,
+        workers_count: workersCount,
+        dept_admins_count: deptAdminsCount,
+        admins_count: adminsCount,
+        locations_count: locationsCount ?? 0,
+        categories_count: categoriesCount ?? 0,
+        by_category: analytics.by_category ?? [],
+        by_worker: analytics.by_worker ?? [],
+        by_location: analytics.by_location ?? [],
+        trend: analytics.trend ?? [],
+      };
+    })
   );
+
+  // Compute platform-wide totals for percentages and DB byte distribution
+  const totalPlatformDbRecords = orgDetails.reduce((acc, o) => acc + o.db_records, 0);
+  const totalFileBytes = Math.max(1, storage.storage_used_bytes);
+
+  const organizations: OrgAnalytics[] = orgDetails.map((org) => {
+    const file_pct = Math.round((org.file_bytes / totalFileBytes) * 100);
+    const db_pct = totalPlatformDbRecords > 0 ? Math.round((org.db_records / totalPlatformDbRecords) * 100) : 0;
+    const db_bytes_estimated = totalPlatformDbRecords > 0
+      ? Math.round(storage.db_size_bytes * (org.db_records / totalPlatformDbRecords))
+      : 0;
+
+    return {
+      ...org,
+      file_pct,
+      db_pct,
+      db_bytes_estimated,
+      total_storage_bytes: org.file_bytes + db_bytes_estimated,
+    };
+  });
+
+  const storageStats: GlobalStorageStats = {
+    db_size_bytes: storage.db_size_bytes,
+    storage_used_bytes: storage.storage_used_bytes,
+    storage_object_count: storage.storage_object_count,
+  };
+
+  return <AnalyticsDashboardClient organizations={organizations} storageStats={storageStats} />;
 }

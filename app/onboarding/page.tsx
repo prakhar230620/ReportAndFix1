@@ -29,8 +29,12 @@ export default async function OnboardingPage({
 
   const { data: colleges } = await supabase
     .from("colleges")
-    .select("id, name, allow_worker_signup, allow_admin_signup")
+    .select("id, name, allow_worker_signup, allow_admin_signup, subscription_status")
     .order("name");
+
+  const activeColleges = (colleges ?? []).filter(
+    (c) => !c.subscription_status?.startsWith("pending_deletion") && c.subscription_status !== "suspended"
+  );
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
@@ -57,7 +61,7 @@ export default async function OnboardingPage({
           />
         </label>
 
-        <CollegeRoleFields colleges={colleges ?? []} />
+        <CollegeRoleFields colleges={activeColleges} />
 
         <button
           type="submit"

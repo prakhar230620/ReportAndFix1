@@ -1,7 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
 import AssignForm from "../AssignForm";
 import VerifyActions from "../VerifyActions";
+import ComplaintMediaGallery from "../ComplaintMediaGallery";
 import Link from "next/link";
+import { getMediaUrl } from "@/lib/media";
+import {
+  MapPin,
+  Tag,
+  Clock,
+  ExternalLink,
+  CheckCircle2,
+  AlertTriangle,
+  UserCheck,
+  Building2,
+  ShieldAlert,
+} from "lucide-react";
 
 export default async function AdminComplaintDetailPage({
   params,
@@ -31,7 +44,19 @@ export default async function AdminComplaintDetailPage({
     .maybeSingle();
 
   if (!complaint) {
-    return <p className="text-sm text-neutral-500">Complaint not found.</p>;
+    return (
+      <div className="rounded-lg border border-neutral-200 bg-white p-8 text-center text-neutral-500">
+        <AlertTriangle className="mx-auto h-8 w-8 text-neutral-400 mb-2" />
+        <p className="text-base font-medium text-neutral-800">Complaint not found</p>
+        <p className="text-sm">The complaint code may be invalid or belongs to another organisation.</p>
+        <Link
+          href="/admin/queue"
+          className="mt-4 inline-block text-sm font-medium text-blue-600 hover:text-blue-700"
+        >
+          ← Back to Complaint Queue
+        </Link>
+      </div>
+    );
   }
 
   const [
@@ -46,36 +71,42 @@ export default async function AdminComplaintDetailPage({
     supabase
       .from("complaint_status_history")
       .select("previous_status, new_status, note, created_at")
-      .eq("complaint_id", complaint.id),
+      .eq("complaint_id", complaint.id)
+      .order("created_at", { ascending: true }),
     supabase
       .from("complaint_progress_updates")
       .select("note, created_at, worker_id")
-      .eq("complaint_id", complaint.id),
+      .eq("complaint_id", complaint.id)
+      .order("created_at", { ascending: true }),
     supabase
       .from("audit_log")
       .select("action, metadata, created_at, actor_id")
-      .eq("entity_id", complaint.id),
+      .eq("entity_id", complaint.id)
+      .order("created_at", { ascending: true }),
     supabase
       .from("complaint_media")
       .select("storage_path, media_type, created_at")
-      .eq("complaint_id", complaint.id),
+      .eq("complaint_id", complaint.id)
+      .order("created_at", { ascending: true }),
     supabase
       .from("profiles")
       .select("id, display_name")
       .eq("college_id", collegeId)
       .eq("role", "worker"),
-    supabase.from("departments").select("id, name").eq("college_id", collegeId).eq("suspended", false),
-    supabase.rpc("location_full_path" as never, { p_location_id: complaint.location_id } as never),
+    supabase
+      .from("departments")
+      .select("id, name")
+      .eq("college_id", collegeId)
+      .eq("suspended", false),
+    supabase.rpc("location_full_path" as never, {
+      p_location_id: complaint.location_id,
+    } as never),
   ]);
 
-  const mediaWithUrls = await Promise.all(
-    (media ?? []).map(async (m) => {
-      const { data } = await supabase.storage
-        .from("complaint-media")
-        .createSignedUrl(m.storage_path, 3600);
-      return { ...m, url: data?.signedUrl ?? null };
-    })
-  );
+  const mediaWithUrls = (media ?? []).map((m) => ({
+    ...m,
+    url: getMediaUrl(m.storage_path),
+  }));
 
   type TimelineEntry = { time: string; label: string; note?: string | null };
   const timeline: TimelineEntry[] = [
@@ -87,7 +118,7 @@ export default async function AdminComplaintDetailPage({
     })),
     ...(progressUpdates ?? []).map((p) => ({
       time: p.created_at,
-      label: "Progress update",
+      label: "Worker progress update",
       note: p.note,
     })),
     ...(auditEntries ?? []).map((a) => ({
@@ -97,83 +128,213 @@ export default async function AdminComplaintDetailPage({
     })),
   ].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 
-  const beforeUrl = mediaWithUrls.find((m) => m.media_type === "before")?.url;
-  const afterUrl = mediaWithUrls.find((m) => m.media_type === "after")?.url;
+  const categoryName = (complaint as any).categories?.name || "General";
+  const locationFullString =
+    (locationPath as unknown as string) ?? (complaint as any).locations?.name ?? "Unknown Location";
+  const departmentName = (departments ?? []).find(
+    (d) => d.id === complaint.assigned_department_id
+  )?.name;
+  const workerName = (workers ?? []).find(
+    (w) => w.id === complaint.assigned_worker_id
+  )?.display_name;
 
-  const category = (complaint as any).categories?.name;
-  const locationSummary = (locationPath as unknown as string) ?? (complaint as any).locations?.name ?? "";
+  // Status badge styling
+  const statusStyles: Record<string, { bg: string; text: string; label: string }> = {
+    submitted: { bg: "bg-blue-50 border-blue-200", text: "text-blue-700", label: "Submitted" },
+    assigned: { bg: "bg-purple-50 border-purple-200", text: "text-purple-700", label: "Assigned" },
+    processing: { bg: "bg-amber-50 border-amber-200", text: "text-amber-700", label: "In Progress" },
+    waiting_for_verification: {
+      bg: "bg-indigo-50 border-indigo-200",
+      text: "text-indigo-700",
+      label: "Waiting for Verification",
+    },
+    completed: { bg: "bg-emerald-50 border-emerald-200", text: "text-emerald-700", label: "Completed" },
+    reopened: { bg: "bg-rose-50 border-rose-200", text: "text-rose-700", label: "Reopened" },
+  };
+
+  const statusInfo = statusStyles[complaint.status] || {
+    bg: "bg-neutral-100 border-neutral-200",
+    text: "text-neutral-700",
+    label: complaint.status,
+  };
+
+  // Priority badge styling
+  const priorityStyles: Record<string, { bg: string; text: string }> = {
+    high: { bg: "bg-red-50 border-red-200", text: "text-red-700" },
+    urgent: { bg: "bg-red-100 border-red-300", text: "text-red-800" },
+    medium: { bg: "bg-amber-50 border-amber-200", text: "text-amber-700" },
+    low: { bg: "bg-blue-50 border-blue-200", text: "text-blue-700" },
+  };
+  const priorityInfo = priorityStyles[complaint.priority?.toLowerCase()] || {
+    bg: "bg-neutral-100 border-neutral-200",
+    text: "text-neutral-700",
+  };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between text-xs text-neutral-500">
-        <span>{complaint.public_id}</span>
-        <Link href={`/issues/${complaint.public_id}`} className="font-medium text-blue-600 hover:text-blue-700">
-          View public page
-        </Link>
-      </div>
+    <div className="flex flex-col gap-6 max-w-4xl pb-16">
+      {/* Top Header Card */}
+      <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 pb-3">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm font-semibold text-neutral-900 bg-neutral-100 px-2.5 py-1 rounded-md border border-neutral-200">
+              {complaint.public_id}
+            </span>
+            <span
+              className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${statusInfo.bg} ${statusInfo.text}`}
+            >
+              {statusInfo.label}
+            </span>
+            <span
+              className={`rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${priorityInfo.bg} ${priorityInfo.text}`}
+            >
+              {complaint.priority || "Medium"} priority
+            </span>
+          </div>
 
-      <h1 className="text-xl font-semibold">{complaint.title}</h1>
-      <p className="text-sm text-neutral-500">
-        {category} · {locationSummary}
-      </p>
-      {complaint.description && <p className="text-sm">{complaint.description}</p>}
+          <div className="flex items-center gap-4 text-xs">
+            <span className="flex items-center gap-1 text-neutral-500">
+              <Clock className="h-3.5 w-3.5" />
+              {new Date(complaint.created_at).toLocaleString()}
+            </span>
+            <Link
+              href={`/issues/${complaint.public_id}`}
+              target="_blank"
+              className="inline-flex items-center gap-1 font-medium text-blue-600 hover:text-blue-700"
+            >
+              View public page <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </div>
 
-      <div className="flex items-center gap-2 text-xs text-neutral-500">
-        <span className="rounded-full bg-neutral-200 px-2 py-0.5">{complaint.status}</span>
-        <span className="rounded-full bg-neutral-200 px-2 py-0.5">{complaint.priority}</span>
-        {complaint.is_anonymous && (
-          <span className="rounded-full bg-neutral-200 px-2 py-0.5">Anonymous</span>
-        )}
-      </div>
-
-      {["submitted", "assigned", "processing", "reopened"].includes(complaint.status) && (
-        <AssignForm
-          complaintId={complaint.id}
-          workers={workers ?? []}
-          departments={departments ?? []}
-          currentWorkerId={complaint.assigned_worker_id}
-          currentWorkerName={
-            (workers ?? []).find((w) => w.id === complaint.assigned_worker_id)?.display_name
-          }
-        />
-      )}
-
-      {complaint.status === "waiting_for_verification" && (
-        <>
-          <div className="flex gap-2">
-            {beforeUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img loading="lazy" decoding="async" src={beforeUrl} alt="Before" className="h-32 w-1/2 rounded-md object-cover" />
+        {/* Title and Description */}
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900">{complaint.title}</h1>
+          <p className="mt-2 text-sm text-neutral-700 leading-relaxed whitespace-pre-wrap">
+            {complaint.description || (
+              <span className="italic text-neutral-400">No additional description provided.</span>
             )}
-            {afterUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img loading="lazy" decoding="async" src={afterUrl} alt="After" className="h-32 w-1/2 rounded-md object-cover" />
+          </p>
+        </div>
+
+        {/* Location & Metadata Pill Bar */}
+        <div className="flex flex-wrap items-center gap-3 pt-2 text-xs text-neutral-600 border-t border-neutral-100">
+          <div className="flex items-center gap-1.5 font-medium text-neutral-800 bg-neutral-50 px-2.5 py-1.5 rounded-md border border-neutral-200">
+            <MapPin className="h-4 w-4 text-rose-500 shrink-0" />
+            <span>{locationFullString}</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-neutral-50 px-2.5 py-1.5 rounded-md border border-neutral-200">
+            <Tag className="h-3.5 w-3.5 text-neutral-500 shrink-0" />
+            <span className="font-medium text-neutral-700">{categoryName}</span>
+          </div>
+
+          {departmentName && (
+            <div className="flex items-center gap-1.5 bg-neutral-50 px-2.5 py-1.5 rounded-md border border-neutral-200">
+              <Building2 className="h-3.5 w-3.5 text-neutral-500 shrink-0" />
+              <span className="text-neutral-700">{departmentName}</span>
+            </div>
+          )}
+
+          {workerName && (
+            <div className="flex items-center gap-1.5 bg-neutral-50 px-2.5 py-1.5 rounded-md border border-neutral-200">
+              <UserCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+              <span className="text-neutral-700">Assigned: <strong className="font-medium">{workerName}</strong></span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-1.5 ml-auto">
+            {complaint.is_anonymous ? (
+              <span className="inline-flex items-center gap-1 rounded-md bg-neutral-100 px-2 py-1 text-xs text-neutral-600 border border-neutral-200">
+                <ShieldAlert className="h-3.5 w-3.5 text-neutral-500" />
+                Anonymous reporter
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-700 border border-blue-200">
+                Verified student/staff
+              </span>
             )}
           </div>
-          <VerifyActions complaintId={complaint.id} />
-        </>
-      )}
+        </div>
+      </div>
 
-      {complaint.status === "completed" && (
-        <div className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
-          Completed · resolved in{" "}
-          {complaint.resolution_seconds
-            ? `${Math.round(complaint.resolution_seconds / 3600)}h`
-            : "—"}
+      {/* Complaint Media & Photos Section - ALWAYS SHOWN! */}
+      <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+        <div className="mb-3 flex items-center justify-between border-b border-neutral-100 pb-2">
+          <h2 className="text-base font-semibold text-neutral-900">
+            Complaint Photos & Attachments
+          </h2>
+          <span className="text-xs text-neutral-500">
+            {mediaWithUrls.length} file{mediaWithUrls.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+        <ComplaintMediaGallery media={mediaWithUrls} />
+      </div>
+
+      {/* Assignment Section for Open Complaints */}
+      {["submitted", "assigned", "processing", "reopened"].includes(complaint.status) && (
+        <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+          <AssignForm
+            complaintId={complaint.id}
+            workers={workers ?? []}
+            departments={departments ?? []}
+            currentWorkerId={complaint.assigned_worker_id}
+            currentWorkerName={workerName}
+          />
         </div>
       )}
 
-      <div>
-        <h2 className="mb-2 text-sm font-semibold">Full audit timeline</h2>
-        <ul className="flex flex-col gap-2 text-xs text-neutral-600">
+      {/* Verification Actions when Worker marks completed */}
+      {complaint.status === "waiting_for_verification" && (
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-5 shadow-sm">
+          <VerifyActions
+            complaintId={complaint.id}
+            isDeptVerified={(auditEntries ?? []).some((a) => a.action === "dept_verified")}
+            hasDepartment={!!complaint.assigned_department_id}
+            departmentName={departmentName}
+          />
+        </div>
+      )}
+
+      {/* Completed Banner */}
+      {complaint.status === "completed" && (
+        <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 shadow-sm">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+          <div>
+            <p className="font-semibold">Issue resolved and verified</p>
+            <p className="text-xs text-emerald-700">
+              Resolved in{" "}
+              {complaint.resolution_seconds
+                ? `${Math.round(complaint.resolution_seconds / 3600)} hour(s)`
+                : "less than an hour"}
+              {complaint.completed_at && ` · ${new Date(complaint.completed_at).toLocaleString()}`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Full Audit Timeline */}
+      <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold text-neutral-900">
+          Full Audit & Event Timeline
+        </h2>
+        <div className="relative pl-6 border-l-2 border-neutral-200 space-y-4">
           {timeline.map((t, i) => (
-            <li key={i}>
-              <span className="font-medium">{t.label}</span> ·{" "}
-              {new Date(t.time).toLocaleString()}
-              {t.note && <div className="text-neutral-500">{t.note}</div>}
-            </li>
+            <div key={i} className="relative">
+              <div className="absolute -left-[31px] top-1 h-3.5 w-3.5 rounded-full border-2 border-white bg-neutral-400" />
+              <div className="flex flex-wrap items-baseline gap-2">
+                <span className="text-xs font-semibold text-neutral-800">{t.label}</span>
+                <span className="text-[11px] text-neutral-400">
+                  {new Date(t.time).toLocaleString()}
+                </span>
+              </div>
+              {t.note && (
+                <div className="mt-1 text-xs text-neutral-600 bg-neutral-50 rounded-md p-2 border border-neutral-100">
+                  {t.note}
+                </div>
+              )}
+            </div>
           ))}
-        </ul>
+        </div>
       </div>
     </div>
   );

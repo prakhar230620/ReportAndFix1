@@ -15,10 +15,12 @@ type AppNotification = {
 export default function NotificationBell({
   role,
   collegeId,
+  departmentId,
   userId,
 }: {
-  role: "college_admin" | "super_admin" | "worker" | "user";
+  role: "college_admin" | "dept_admin" | "super_admin" | "worker" | "user";
   collegeId?: string | null;
+  departmentId?: string | null;
   userId?: string;
 }) {
   const [items, setItems] = useState<AppNotification[]>([]);
@@ -79,6 +81,38 @@ export default function NotificationBell({
                 message: `New ${payload.new.requested_role} access request`,
                 href: "/admin/role-requests",
               });
+            }
+          )
+          .subscribe()
+      );
+    }
+
+    if (role === "dept_admin" && departmentId) {
+      channels.push(
+        client
+          .channel(`dept-complaints-${departmentId}`)
+          .on(
+            "postgres_changes",
+            { event: "UPDATE", schema: "public", table: "complaints" },
+            (payload) => {
+              if (
+                payload.new.assigned_department_id === departmentId &&
+                payload.new.status === "waiting_for_verification" &&
+                payload.old.status !== "waiting_for_verification"
+              ) {
+                push({
+                  message: `Task ready for verification: ${payload.new.title ?? "Complaint"}`,
+                  href: `/dept-admin/queue/${payload.new.public_id}`,
+                });
+              } else if (
+                payload.new.assigned_department_id === departmentId &&
+                payload.old.assigned_department_id !== departmentId
+              ) {
+                push({
+                  message: `New complaint assigned to your department: ${payload.new.title ?? "Complaint"}`,
+                  href: `/dept-admin/queue/${payload.new.public_id}`,
+                });
+              }
             }
           )
           .subscribe()

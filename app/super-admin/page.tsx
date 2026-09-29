@@ -1,16 +1,25 @@
 import { createClient } from "@/lib/supabase/server";
-import CollegeRow from "./CollegeRow";
-import AddCollegeForm from "./AddCollegeForm";
+import { purgeExpiredColleges } from "./actions";
+import SuperAdminDashboard from "./SuperAdminDashboard";
+import { Organization } from "./CollegeRow";
 
 export default async function SuperAdminPage() {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_platform_overview" as never, {} as never);
 
-  if (error || !data) {
-    return <p className="text-sm text-red-600">Failed to load: {error?.message}</p>;
+  // Run auto-purge for any soft-deleted colleges past the 30-day window
+  await purgeExpiredColleges();
+
+  const [{ data: overviewData, error: overviewErr }, { data: collegesList, error: collegesErr }] =
+    await Promise.all([
+      supabase.rpc("get_platform_overview" as never, {} as never),
+      supabase.from("colleges").select("*").order("created_at", { ascending: false }),
+    ]);
+
+  if (overviewErr || !overviewData) {
+    return <p className="text-sm text-red-600">Failed to load platform overview: {overviewErr?.message}</p>;
   }
 
-  const overview = data as {
+  const overview = overviewData as {
     colleges: {
       id: string;
       name: string;
@@ -25,31 +34,41 @@ export default async function SuperAdminPage() {
     total_issues: number;
   };
 
+  // Map counts from get_platform_overview by id
+  const countsMap = new Map(
+    (overview.colleges ?? []).map((c) => [
+      c.id,
+      { user_count: c.user_count, worker_count: c.worker_count, issue_count: c.issue_count },
+    ])
+  );
+
+  // Combine full metadata from colleges table with live counts
+  const organizations: Organization[] = (collegesList ?? []).map((col) => {
+    const counts = countsMap.get(col.id) ?? { user_count: 0, worker_count: 0, issue_count: 0 };
+    return {
+      id: col.id,
+      name: col.name,
+      category: col.category,
+      subscription_status: col.subscription_status ?? "active",
+      logo_url: col.logo_url,
+      address: col.address,
+      contact_email: col.contact_email,
+      contact_phone: col.contact_phone,
+      allow_worker_signup: col.allow_worker_signup,
+      allow_admin_signup: col.allow_admin_signup,
+      user_count: counts.user_count,
+      worker_count: counts.worker_count,
+      issue_count: counts.issue_count,
+      created_at: col.created_at,
+    };
+  });
+
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">Platform overview</h1>
-
-      <div className="grid grid-cols-3 gap-3 text-center text-sm">
-        <div className="rounded-md border border-neutral-200 p-3">
-          <div className="text-2xl font-semibold">{overview.total_users}</div>
-          <div className="text-neutral-500">Users</div>
-        </div>
-        <div className="rounded-md border border-neutral-200 p-3">
-          <div className="text-2xl font-semibold">{overview.total_workers}</div>
-          <div className="text-neutral-500">Workers</div>
-        </div>
-        <div className="rounded-md border border-neutral-200 p-3">
-          <div className="text-2xl font-semibold">{overview.total_issues}</div>
-          <div className="text-neutral-500">Issues</div>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <AddCollegeForm />
-        {overview.colleges.map((c) => (
-          <CollegeRow key={c.id} college={c} />
-        ))}
-      </div>
-    </div>
+    <SuperAdminDashboard
+      organizations={organizations}
+      totalUsers={overview.total_users ?? 0}
+      totalWorkers={overview.total_workers ?? 0}
+      totalIssues={overview.total_issues ?? 0}
+    />
   );
 }

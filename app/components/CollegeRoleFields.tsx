@@ -13,15 +13,18 @@ export default function CollegeRoleFields({
   colleges,
   defaultCollegeId = "",
   defaultRole = "user",
+  defaultJoinCode = "",
   approvalNote = "Worker and Admin access requires approval after you continue.",
 }: {
   colleges: College[];
   defaultCollegeId?: string;
   defaultRole?: string;
+  defaultJoinCode?: string;
   approvalNote?: string;
 }) {
   const [collegeId, setCollegeId] = useState(defaultCollegeId);
   const [role, setRole] = useState(defaultRole);
+  const [joinCode, setJoinCode] = useState(defaultJoinCode);
 
   const college = colleges.find((c) => c.id === collegeId);
   const canWorker = !!college?.allow_worker_signup;
@@ -56,7 +59,24 @@ export default function CollegeRoleFields({
         </select>
       </label>
 
+      {collegeId && (
+        <label className="flex flex-col gap-1 text-sm">
+          Organisation Join Code
+          <input
+            name="join_code"
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            placeholder="e.g. 6-character code"
+            className="rounded-md border border-neutral-300 px-3 py-2 uppercase tracking-wider font-mono text-neutral-800"
+          />
+          <span className="text-xs text-neutral-400">
+            Ask your organisation administrator for their 6-character code, or scan their QR code.
+          </span>
+        </label>
+      )}
+
       {!collegeId ? (
+
         <p className="text-xs text-neutral-400">
           Select an organisation first to see which roles are available.
         </p>
@@ -71,7 +91,7 @@ export default function CollegeRoleFields({
               checked={role === "user"}
               onChange={() => setRole("user")}
             />
-            Student / general user
+            Member / general user
           </label>
           {canWorker && (
             <label className="flex items-center gap-2 rounded-md border border-neutral-300 px-3 py-2">
@@ -101,7 +121,7 @@ export default function CollegeRoleFields({
             <p className="text-xs text-neutral-500">{approvalNote}</p>
           ) : (
             <p className="text-xs text-neutral-500">
-              This organisation is only accepting student / general user sign-ups right now.
+              This organisation is only accepting member sign-ups right now.
             </p>
           )}
         </fieldset>

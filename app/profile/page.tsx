@@ -30,7 +30,9 @@ export default async function ProfilePage() {
       <div className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600">
         <div>{user.email}</div>
         <div>
-          {roleLabel(profile?.role)} · {(profile?.colleges as any)?.name}
+          {profile?.role === "super_admin"
+            ? "Super Admin · Platform Owner"
+            : `${roleLabel(profile?.role)} · ${(profile?.colleges as any)?.name ?? "Organisation"}`}
         </div>
       </div>
 

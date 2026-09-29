@@ -15,7 +15,7 @@ import {
 
 type Category = { id: string; name: string };
 
-const MAX_FILES = 5;
+const MAX_FILES = 2;
 const MAX_BYTES = 8 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const DESCRIPTION_LIMIT = 500;
