@@ -59,7 +59,7 @@ export default function PlanUpgradeModal({
       }
 
       const rzp = new window.Razorpay({
-        key: data.key,
+        key: data.key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_TlKKTyUyGtUGmw",
         order_id: data.orderId,
         amount: amount,
         currency: "INR",
@@ -83,14 +83,24 @@ export default function PlanUpgradeModal({
             }),
           });
           const verifyData = await verifyRes.json();
-          if (verifyData.ok) {
+          if (verifyData.ok || verifyData.success) {
             window.location.reload();
           } else {
             setError(verifyData.error ?? "Payment verification failed. Contact support.");
           }
         },
-        modal: { ondismiss: () => setLoading(false) },
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+          },
+        },
       });
+
+      rzp.on("payment.failed", (response: any) => {
+        setLoading(false);
+        setError(response.error?.description || "Payment failed. Please try again.");
+      });
+
       rzp.open();
     } catch (e: any) {
       setError(e.message);

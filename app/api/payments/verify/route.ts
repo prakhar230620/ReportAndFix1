@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, success: true });
   } catch (err: any) {
     console.error("[verify-payment]", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
