@@ -67,6 +67,16 @@ export async function POST(req: NextRequest) {
     const amount =
       billingCycle === "yearly" ? plan.price_yearly_paise : plan.price_monthly_paise;
 
+    // Check if test mode
+    const isTestMode = (process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "").startsWith("rzp_test_");
+
+    // In Razorpay Test Mode / Sandbox, single orders above ₹50,000 (and specifically UPI above ₹15,000) are blocked by Razorpay
+    // with "Amount exceeds maximum amount allowed."
+    // In test mode, cap the gateway order amount to ₹499 (49900 paise) so developers and college admins can test the full checkout flow
+    // with test UPI, test cards, or netbanking without hitting Razorpay's sandbox transaction ceiling.
+    // In production, live orders use the exact full amount.
+    const razorpayOrderAmount = isTestMode && amount > 5000000 ? 49900 : amount;
+
     // 6. Invoice number
     const { count: txnCount } = await adminClient
       .from("payment_transactions")
@@ -76,17 +86,18 @@ export async function POST(req: NextRequest) {
 
     // 7. Create Razorpay order
     const order = await createRazorpayOrder({
-      amount,
+      amount: razorpayOrderAmount,
       receipt: invoiceNumber,
       notes: {
         college_id: resolvedCollegeId,
         plan_id: planId,
         billing_cycle: billingCycle,
         invoice: invoiceNumber,
+        actual_plan_amount: String(amount),
       },
     });
 
-    // 8. Persist pending transaction
+    // 8. Persist pending transaction with the true plan amount (e.g. ₹99,990)
     const { data: txn } = await adminClient
       .from("payment_transactions")
       .insert({
@@ -96,13 +107,20 @@ export async function POST(req: NextRequest) {
         razorpay_order_id: order.id,
         invoice_number: invoiceNumber,
         description: `Plan subscription — ${billingCycle}`,
-        metadata: { plan_id: planId, billing_cycle: billingCycle },
+        metadata: {
+          plan_id: planId,
+          billing_cycle: billingCycle,
+          test_simulated: isTestMode && amount > 5000000,
+        },
       })
       .select("id")
       .single();
 
     return NextResponse.json({
       orderId: order.id,
+      amount: order.amount,
+      actualAmount: amount,
+      isTestSimulated: isTestMode && amount > 5000000,
       key: RAZORPAY_PUBLIC_KEY,
       transactionId: txn?.id,
       email: user.email,

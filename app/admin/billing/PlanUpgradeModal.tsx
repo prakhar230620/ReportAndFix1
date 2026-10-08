@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { CheckCircle2, X, Zap, MessageSquare, Download, HardDrive, Users } from "lucide-react";
 import { formatPrice, planColor, planFeatureLabel, isUnlimited, type Plan } from "@/lib/plans";
 import { ButtonSpinner } from "@/app/components/Spinner";
@@ -61,10 +62,12 @@ export default function PlanUpgradeModal({
       const rzp = new window.Razorpay({
         key: data.key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_TlKKTyUyGtUGmw",
         order_id: data.orderId,
-        amount: amount,
+        amount: data.amount || amount,
         currency: "INR",
         name: "ReportAndFix",
-        description: `${plan.name} Plan — ${billing}`,
+        description: data.isTestSimulated
+          ? `${plan.name} Plan — ${billing} (Sandbox Simulation)`
+          : `${plan.name} Plan — ${billing}`,
         image: "/logo.png",
         prefill: { email: data.email },
         theme: { color: "#1c1917" },
@@ -98,7 +101,14 @@ export default function PlanUpgradeModal({
 
       rzp.on("payment.failed", (response: any) => {
         setLoading(false);
-        setError(response.error?.description || "Payment failed. Please try again.");
+        const desc = response.error?.description || "Payment failed. Please try again.";
+        if (desc.toLowerCase().includes("exceeds maximum amount")) {
+          setError(
+            "Transaction amount exceeds the maximum online gateway limit for this method. For Enterprise high-value subscriptions, you can also request a Corporate Invoice or pay via Bank Transfer (NEFT/RTGS)."
+          );
+        } else {
+          setError(desc);
+        }
       });
 
       rzp.open();
@@ -150,8 +160,18 @@ export default function PlanUpgradeModal({
             </div>
 
             {error && (
-              <div className="mx-6 mt-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-                {error}
+              <div className="mx-6 mt-4 rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex-1">
+                  <p className="font-semibold text-red-800 text-xs uppercase tracking-wider">Payment Notice</p>
+                  <p className="text-xs text-red-700 mt-0.5 leading-relaxed">{error}</p>
+                </div>
+                <Link
+                  href="/admin/support?topic=enterprise_billing"
+                  onClick={() => setOpen(false)}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-neutral-800 transition"
+                >
+                  Request Invoice / Bank Transfer
+                </Link>
               </div>
             )}
 
@@ -216,6 +236,16 @@ export default function PlanUpgradeModal({
                     >
                       {loading ? <ButtonSpinner /> : isCurrent ? "Current Plan" : "Subscribe"}
                     </button>
+
+                    {plan.slug === "enterprise" && !isCurrent && (
+                      <Link
+                        href="/admin/support?topic=enterprise_billing"
+                        onClick={() => setOpen(false)}
+                        className="mt-2.5 text-center text-[11px] font-semibold text-neutral-500 hover:text-neutral-900 transition flex items-center justify-center gap-1"
+                      >
+                        Request Corporate Invoice (NEFT/RTGS) →
+                      </Link>
+                    )}
                   </div>
                 );
               })}

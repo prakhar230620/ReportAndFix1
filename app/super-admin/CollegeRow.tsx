@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState, useEffect, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   setCollegeStatus,
   updateCollege,
@@ -15,6 +16,7 @@ export type Organization = {
   name: string;
   category?: string | null;
   subscription_status: string;
+  is_frozen?: boolean;
   subscription_plan?: string | null;
   camera_mode?: string | null;
   logo_url: string | null;
@@ -41,10 +43,23 @@ const CATEGORIES = [
 ];
 
 export default function CollegeRow({ college }: { college: Organization }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [logoUrl, setLogoUrl] = useState(college.logo_url);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Status state synced with props & server
+  const [currentStatus, setCurrentStatus] = useState(college.subscription_status);
+  const [currentPlan, setCurrentPlan] = useState(college.subscription_plan);
+
+  useEffect(() => {
+    setCurrentStatus(college.subscription_status);
+  }, [college.subscription_status]);
+
+  useEffect(() => {
+    setCurrentPlan(college.subscription_plan);
+  }, [college.subscription_plan]);
 
   // Modals state
   const [editOpen, setEditOpen] = useState(false);
@@ -74,12 +89,12 @@ export default function CollegeRow({ college }: { college: Organization }) {
   const [planSuccess, setPlanSuccess] = useState<string | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
 
-  const isPendingDeletion = college.subscription_status?.startsWith("pending_deletion");
+  const isPendingDeletion = currentStatus?.startsWith("pending_deletion");
   let daysLeft = 30;
   let scheduledDeletionDate = "";
 
   if (isPendingDeletion) {
-    const rawTimestamp = college.subscription_status.replace("pending_deletion:", "");
+    const rawTimestamp = currentStatus.replace("pending_deletion:", "");
     const deletionTime = new Date(rawTimestamp).getTime();
     if (!isNaN(deletionTime)) {
       const msPassed = Date.now() - deletionTime;
@@ -92,13 +107,18 @@ export default function CollegeRow({ college }: { college: Organization }) {
     }
   }
 
-  const isSuspended = college.subscription_status === "suspended";
+  const isSuspended = currentStatus === "suspended" || currentStatus === "frozen" || college.is_frozen === true;
+  const isCancelled = currentStatus === "cancelled";
 
   function toggleSuspend() {
     const next = isSuspended ? "active" : "suspended";
     startTransition(async () => {
       const result = await setCollegeStatus(college.id, next);
       if (result.error) alert(result.error);
+      else {
+        setCurrentStatus(next);
+        router.refresh();
+      }
     });
   }
 
@@ -166,15 +186,26 @@ export default function CollegeRow({ college }: { college: Organization }) {
       if (res?.error) {
         setPlanError(res.error);
       } else {
+        if (actionType === "suspend") {
+          setCurrentStatus("suspended");
+        } else if (actionType === "continue") {
+          setCurrentStatus("active");
+        } else if (actionType === "cancel") {
+          setCurrentStatus("cancelled");
+        } else if (actionType === "assign") {
+          setCurrentStatus("active");
+          setCurrentPlan(planId);
+        }
+        router.refresh();
         setPlanSuccess(
           actionType === "assign"
             ? "Plan assigned and verified successfully!"
-            : `Subscription status updated to ${actionType} successfully!`
+            : `Subscription status updated to ${actionType.toUpperCase()} successfully!`
         );
         setTimeout(() => {
           setPlanModalOpen(false);
           setPlanSuccess(null);
-        }, 1500);
+        }, 1200);
       }
     } catch (err: any) {
       setPlanError(err?.message ?? "An error occurred");
@@ -258,7 +289,7 @@ export default function CollegeRow({ college }: { college: Organization }) {
 
               {/* Plan Badge */}
               <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-indigo-700 border border-indigo-200">
-                Plan: {college.subscription_plan ? college.subscription_plan.toUpperCase() : "NO PLAN"}
+                Plan: {currentPlan ? currentPlan.toUpperCase() : "NO PLAN"}
               </span>
 
               {/* Camera Policy Badge */}
@@ -274,11 +305,15 @@ export default function CollegeRow({ college }: { college: Organization }) {
                   ⚠️ Deleting in {daysLeft} {daysLeft === 1 ? "day" : "days"}
                 </span>
               ) : isSuspended ? (
-                <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
-                  Suspended
+                <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700 border border-red-200">
+                  Suspended / Frozen
+                </span>
+              ) : isCancelled ? (
+                <span className="rounded-full bg-neutral-200 px-2.5 py-0.5 text-xs font-semibold text-neutral-700 border border-neutral-300">
+                  Cancelled
                 </span>
               ) : (
-                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
                   Active
                 </span>
               )}
@@ -604,49 +639,70 @@ export default function CollegeRow({ college }: { college: Organization }) {
             {/* Quick Status & Actions */}
             <div className="mb-5 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <div>
+                <div className="flex items-center gap-2">
                   <span className="text-neutral-500 font-medium">Current Status: </span>
-                  <span className="font-bold text-neutral-900 uppercase">
-                    {college.subscription_status}
-                  </span>
+                  {isSuspended ? (
+                    <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold uppercase text-red-700 border border-red-200">
+                      SUSPENDED / FROZEN
+                    </span>
+                  ) : isCancelled ? (
+                    <span className="rounded-full bg-neutral-200 px-2.5 py-0.5 text-xs font-bold uppercase text-neutral-700 border border-neutral-300">
+                      CANCELLED
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold uppercase text-emerald-700 border border-emerald-200">
+                      ACTIVE
+                    </span>
+                  )}
                 </div>
                 <div>
                   <span className="text-neutral-500 font-medium">Active Plan: </span>
                   <span className="font-bold text-indigo-700 uppercase">
-                    {college.subscription_plan ?? "None"}
+                    {currentPlan ? currentPlan.toUpperCase() : "FREE"}
                   </span>
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-2 border-t pt-3">
-                {college.subscription_status !== "suspended" ? (
-                  <button
-                    type="button"
-                    onClick={() => handlePlanAction("suspend")}
-                    disabled={planLoading}
-                    className="rounded border border-amber-300 bg-white px-2.5 py-1 font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-40"
-                  >
-                    Freeze / Suspend Plan
-                  </button>
-                ) : (
+                {isSuspended ? (
                   <button
                     type="button"
                     onClick={() => handlePlanAction("continue")}
                     disabled={planLoading}
-                    className="rounded border border-emerald-300 bg-white px-2.5 py-1 font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-40"
+                    className="rounded border border-emerald-300 bg-white px-2.5 py-1 font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 transition"
                   >
-                    Reactivate Plan
+                    ✓ Reactivate Plan
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handlePlanAction("suspend")}
+                    disabled={planLoading}
+                    className="rounded border border-amber-300 bg-white px-2.5 py-1 font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-40 transition"
+                  >
+                    ❄️ Freeze / Suspend Plan
                   </button>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => handlePlanAction("cancel")}
-                  disabled={planLoading}
-                  className="rounded border border-red-300 bg-white px-2.5 py-1 font-medium text-red-700 hover:bg-red-50 disabled:opacity-40"
-                >
-                  Cancel Subscription
-                </button>
+                {isCancelled ? (
+                  <button
+                    type="button"
+                    onClick={() => handlePlanAction("continue")}
+                    disabled={planLoading}
+                    className="rounded border border-emerald-300 bg-white px-2.5 py-1 font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 transition"
+                  >
+                    ✓ Reopen Subscription
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handlePlanAction("cancel")}
+                    disabled={planLoading}
+                    className="rounded border border-red-300 bg-white px-2.5 py-1 font-semibold text-red-700 hover:bg-red-50 disabled:opacity-40 transition"
+                  >
+                    ✕ Cancel Subscription
+                  </button>
+                )}
               </div>
             </div>
 

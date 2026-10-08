@@ -50,10 +50,21 @@ export async function setCollegeStatus(collegeId: string, status: "active" | "su
     const supabase = await getSuperAdminClient();
     const { error } = await supabase
       .from("colleges")
-      .update({ subscription_status: status })
+      .update({
+        subscription_status: status,
+        is_frozen: status === "suspended",
+        frozen_reason: status === "suspended" ? "Suspended by Super Admin" : null,
+      })
       .eq("id", collegeId);
 
     if (error) return { error: error.message };
+
+    const adminClient = createAdminClient();
+    await adminClient
+      .from("org_subscriptions")
+      .update({ status: status === "suspended" ? "frozen" : "active" })
+      .eq("college_id", collegeId);
+
     revalidatePath("/super-admin");
     return { ok: true };
   } catch (err: any) {
@@ -267,25 +278,38 @@ export async function manageOrgSubscriptionManual(formData: FormData) {
 
     if (actionType === "suspend") {
       await adminClient.from("org_subscriptions").update({ status: "frozen" }).eq("college_id", collegeId);
-      await adminClient.from("colleges").update({ is_frozen: true, frozen_reason: "Suspended by Super Admin" }).eq("id", collegeId);
+      await adminClient.from("colleges").update({
+        is_frozen: true,
+        frozen_reason: "Suspended by Super Admin",
+        subscription_status: "suspended",
+      }).eq("id", collegeId);
       revalidatePath("/super-admin");
       revalidatePath("/super-admin/analytics");
-      return { ok: true };
+      return { ok: true, status: "suspended" };
     }
 
     if (actionType === "continue") {
       await adminClient.from("org_subscriptions").update({ status: "active" }).eq("college_id", collegeId);
-      await adminClient.from("colleges").update({ is_frozen: false, frozen_reason: null }).eq("id", collegeId);
+      await adminClient.from("colleges").update({
+        is_frozen: false,
+        frozen_reason: null,
+        subscription_status: "active",
+      }).eq("id", collegeId);
       revalidatePath("/super-admin");
       revalidatePath("/super-admin/analytics");
-      return { ok: true };
+      return { ok: true, status: "active" };
     }
 
     if (actionType === "cancel") {
       await adminClient.from("org_subscriptions").update({ status: "cancelled" }).eq("college_id", collegeId);
+      await adminClient.from("colleges").update({
+        is_frozen: true,
+        frozen_reason: "Subscription Cancelled",
+        subscription_status: "cancelled",
+      }).eq("id", collegeId);
       revalidatePath("/super-admin");
       revalidatePath("/super-admin/analytics");
-      return { ok: true };
+      return { ok: true, status: "cancelled" };
     }
 
     // Action is "assign"

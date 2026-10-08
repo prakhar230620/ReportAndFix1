@@ -45,11 +45,20 @@ export default async function SuperAdminPage() {
   // Combine full metadata from colleges table with live counts
   const organizations: Organization[] = (collegesList ?? []).map((col) => {
     const counts = countsMap.get(col.id) ?? { user_count: 0, worker_count: 0, issue_count: 0 };
+
+    let effectiveStatus = col.subscription_status ?? "active";
+    if (effectiveStatus.startsWith("pending_deletion")) {
+      // keep pending_deletion with timestamp
+    } else if (col.is_frozen || effectiveStatus === "frozen") {
+      effectiveStatus = "suspended";
+    }
+
     return {
       id: col.id,
       name: col.name,
       category: col.category,
-      subscription_status: col.subscription_status ?? "active",
+      subscription_status: effectiveStatus,
+      is_frozen: col.is_frozen ?? false,
       subscription_plan: col.subscription_plan ?? null,
       camera_mode: col.camera_mode ?? "both",
       logo_url: col.logo_url,
