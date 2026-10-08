@@ -39,6 +39,14 @@ export default function CollegeRoleFields({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collegeId]);
 
+  useEffect(() => {
+    if (defaultCollegeId) setCollegeId(defaultCollegeId);
+  }, [defaultCollegeId]);
+
+  useEffect(() => {
+    if (defaultJoinCode) setJoinCode(defaultJoinCode);
+  }, [defaultJoinCode]);
+
   return (
     <>
       <label className="flex flex-col gap-1 text-sm">

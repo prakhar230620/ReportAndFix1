@@ -6,6 +6,29 @@ export default function PwaRegister() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
 
+  function isInstallDismissed(): boolean {
+    try {
+      if (localStorage.getItem("pwa_install_dismissed") === "true") return true;
+    } catch {}
+    try {
+      if (sessionStorage.getItem("pwa_install_dismissed") === "true") return true;
+    } catch {}
+    if (typeof document !== "undefined" && document.cookie.includes("pwa_install_dismissed=true")) return true;
+    return false;
+  }
+
+  function setInstallDismissed() {
+    try {
+      localStorage.setItem("pwa_install_dismissed", "true");
+    } catch {}
+    try {
+      sessionStorage.setItem("pwa_install_dismissed", "true");
+    } catch {}
+    try {
+      document.cookie = "pwa_install_dismissed=true; path=/; max-age=31536000; SameSite=Lax";
+    } catch {}
+  }
+
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       window.addEventListener("load", () => {
@@ -23,6 +46,10 @@ export default function PwaRegister() {
       const handleBeforeInstall = (e: Event) => {
         e.preventDefault();
         setDeferredPrompt(e);
+
+        // Do not show if user previously dismissed the install prompt
+        if (isInstallDismissed()) return;
+
         // Only show prompt if not already in standalone mode
         const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
         if (!isStandalone) {
@@ -43,9 +70,15 @@ export default function PwaRegister() {
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === "accepted") {
+      setInstallDismissed();
       setShowInstallBanner(false);
       setDeferredPrompt(null);
     }
+  };
+
+  const handleDismiss = () => {
+    setInstallDismissed();
+    setShowInstallBanner(false);
   };
 
   if (!showInstallBanner) return null;
@@ -74,7 +107,7 @@ export default function PwaRegister() {
           Install
         </button>
         <button
-          onClick={() => setShowInstallBanner(false)}
+          onClick={handleDismiss}
           aria-label="Dismiss banner"
           className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-800 hover:text-white"
         >

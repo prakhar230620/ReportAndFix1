@@ -53,7 +53,7 @@ async function recalculateComplaintPriority(complaintId: string, voteCount: numb
     const adminClient = createAdminClient();
     const { data: comp } = await adminClient
       .from("complaints")
-      .select("id, college_id, priority, public_id")
+      .select("id, college_id, priority, public_id, status")
       .eq("id", complaintId)
       .single();
 
@@ -65,15 +65,15 @@ async function recalculateComplaintPriority(complaintId: string, voteCount: numb
       .select("id", { count: "exact", head: true })
       .eq("college_id", comp.college_id);
 
-    const orgSize = Math.max(totalMembers ?? 1, 10);
+    const orgSize = Math.max(totalMembers ?? 1, 5);
     const joinRatio = (voteCount / orgSize) * 100;
 
     let targetPriority: "low" | "medium" | "high" | "urgent" = "low";
-    if (joinRatio >= 20 || voteCount >= 20) {
+    if (voteCount >= 8 || joinRatio >= 30) {
       targetPriority = "urgent";
-    } else if (joinRatio >= 10 || voteCount >= 10) {
+    } else if (voteCount >= 4 || joinRatio >= 18) {
       targetPriority = "high";
-    } else if (joinRatio >= 5 || voteCount >= 5) {
+    } else if (voteCount >= 2 || joinRatio >= 8) {
       targetPriority = "medium";
     }
 
@@ -83,12 +83,24 @@ async function recalculateComplaintPriority(complaintId: string, voteCount: numb
         .update({ priority: targetPriority })
         .eq("id", complaintId);
 
+      // Record automated priority adjustment in status history with valid enum values
+      if (comp.status) {
+        await adminClient.from("complaint_status_history").insert({
+          complaint_id: complaintId,
+          previous_status: comp.status,
+          new_status: comp.status,
+          actor_id: null,
+          note: `Priority Engine: Auto-escalated to ${targetPriority.toUpperCase()} (${voteCount} people joined · ${Math.round(joinRatio)}% of organisation impacted)`,
+        });
+      }
+
       revalidatePath("/feed");
       revalidatePath(`/issues/${comp.public_id}`);
       revalidatePath("/admin/queue");
       revalidatePath(`/admin/queue/${comp.public_id}`);
       revalidatePath("/dept-admin/queue");
       revalidatePath(`/dept-admin/queue/${comp.public_id}`);
+      revalidatePath("/worker");
     }
   } catch (err) {
     console.warn("Priority recalculation warning:", err);
@@ -236,5 +248,17 @@ export async function createComplaint(params: {
     .single();
 
   if (error) return { error: error.message };
+
+  // Automatically record first join vote and evaluate priority
+  try {
+    await adminClient.from("complaint_votes").insert({
+      complaint_id: complaint.id,
+      user_id: user.id,
+    });
+    await recalculateComplaintPriority(complaint.id, 1);
+  } catch (vErr) {
+    console.warn("Initial vote recording note:", vErr);
+  }
+
   return { complaint };
 }

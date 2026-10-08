@@ -7,12 +7,12 @@ import Link from "next/link";
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; next?: string; qr?: string; org?: string }>;
+  searchParams: Promise<{ error?: string; next?: string; qr?: string; org?: string; code?: string; join_code?: string }>;
 }) {
-  const { error, next, qr, org } = await searchParams;
+  const { error, next, qr, org, code: codeParam, join_code } = await searchParams;
   const supabase = await createClient();
 
-  let prefillCode = "";
+  let prefillCode = codeParam ?? join_code ?? "";
   let prefillOrg = org ?? "";
 
   if (qr) {
@@ -24,9 +24,22 @@ export default async function SignupPage({
       .maybeSingle();
 
     if (joinRow) {
-      prefillCode = joinRow.code;
+      if (!prefillCode) prefillCode = joinRow.code;
       if (!prefillOrg) prefillOrg = joinRow.college_id;
     }
+  }
+
+  // If org is provided without a code, look up the active join code for that org
+  if (prefillOrg && !prefillCode) {
+    const { data: activeCode } = await supabase
+      .from("org_join_codes")
+      .select("code")
+      .eq("college_id", prefillOrg)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (activeCode) prefillCode = activeCode.code;
   }
 
   const { data: colleges } = await supabase
@@ -37,7 +50,6 @@ export default async function SignupPage({
   const activeColleges = (colleges ?? []).filter(
     (c) => !c.subscription_status?.startsWith("pending_deletion") && c.subscription_status !== "suspended"
   );
-
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
@@ -102,7 +114,10 @@ export default async function SignupPage({
             <Link href="/terms" target="_blank" className="font-semibold text-blue-600 underline">
               Terms of Service
             </Link>{" "}
-            and Data Retention Policies.
+            and{" "}
+            <Link href="/terms#data-deletion" target="_blank" className="font-semibold text-blue-600 underline">
+              Data Deletion & Retention Policy
+            </Link>.
           </span>
         </label>
 

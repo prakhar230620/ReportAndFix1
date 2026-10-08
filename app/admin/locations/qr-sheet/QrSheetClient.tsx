@@ -74,6 +74,32 @@ export default function QrSheetClient({
     URL.revokeObjectURL(url);
   }
 
+  async function printPdf() {
+    const ids = Array.from(sheetSelected);
+    if (ids.length === 0) return;
+    const res = await fetch("/api/qr-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ location_ids: ids }),
+    });
+    if (!res.ok) {
+      alert("Failed to generate PDF for printing: " + (await res.text()));
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    // Open PDF in new tab for printing (browser PDF viewer handles print)
+    const win = window.open(url, "_blank");
+    if (win) {
+      win.addEventListener("load", () => {
+        win.focus();
+        win.print();
+      });
+    }
+    // Release object URL after a delay
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <div className="print:hidden">
@@ -145,11 +171,11 @@ export default function QrSheetClient({
                 <Download size={14} /> Download PDF
               </button>
               <button
-                onClick={() => window.print()}
+                onClick={printPdf}
                 disabled={sheetSelected.size === 0}
                 className="flex items-center gap-1.5 rounded-md border border-neutral-300 px-3 py-1.5 text-sm disabled:opacity-40"
               >
-                <Printer size={14} /> Print
+                <Printer size={14} /> Print PDF
               </button>
             </div>
           </section>

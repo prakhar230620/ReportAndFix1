@@ -267,9 +267,10 @@ export async function compressImage(file: File): Promise<File> {
     }
 
     // Keep clean file extension (.webp or .jpg)
-    const ext = chosenBlob.type === "image/webp" ? ".webp" : ".jpg";
+    const mimeType = chosenBlob.type || "image/webp";
+    const ext = mimeType === "image/webp" ? ".webp" : mimeType === "image/png" ? ".png" : ".jpg";
     const newName = file.name.replace(/\.[^.]+$/, "") + ext;
-    return new File([chosenBlob], newName, { type: chosenBlob.type });
+    return new File([chosenBlob], newName, { type: mimeType });
   } catch (err) {
     console.error("Client-side compression fallback to original:", err);
     return file;

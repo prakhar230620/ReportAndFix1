@@ -95,7 +95,9 @@ export default function AssignForm({
           </span>
           <select
             value={departmentId}
-            onChange={(e) => setDepartmentId(e.target.value)}
+            onChange={(e) => {
+              setDepartmentId(e.target.value);
+            }}
             className="rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none"
           >
             <option value="">-- No Department --</option>
@@ -107,30 +109,24 @@ export default function AssignForm({
           </select>
         </label>
 
-        {/* Worker Select (Optional direct assignment) */}
+        {/* Worker Select */}
         <label className="flex flex-col gap-1 text-xs font-medium text-neutral-700">
           <span className="flex items-center gap-1">
             <User className="h-3.5 w-3.5 text-neutral-500" />
-            Specific Worker (Optional override)
+            Specific Worker
           </span>
           <select
             value={workerId}
             onChange={(e) => {
-              const selectedId = e.target.value;
-              setWorkerId(selectedId);
-              if (selectedId) {
-                const w = workers.find((x) => x.id === selectedId);
-                if (w?.department_id) {
-                  setDepartmentId(w.department_id);
-                }
-              }
+              setWorkerId(e.target.value);
+              // Workers can belong to multiple departments — do not auto-lock dept
             }}
             className="rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none"
           >
             <option value="">Let Departmental Admin assign worker</option>
             {workers.map((w) => (
               <option key={w.id} value={w.id}>
-                {w.display_name ?? w.id}
+                {w.display_name ?? w.id} {w.department_id ? `(${departments.find((d) => d.id === w.department_id)?.name ?? "Dept"})` : "(No dept yet)"}
               </option>
             ))}
           </select>

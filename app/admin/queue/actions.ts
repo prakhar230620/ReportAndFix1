@@ -49,25 +49,38 @@ export async function assignComplaint(
     }
   }
 
-  // Fetch the current status of the complaint so we log an accurate transition
+  // Fetch current complaint to perform valid state transition
   const { data: currentComplaint } = await adminClient
     .from("complaints")
-    .select("status")
+    .select("status, assigned_department_id")
     .eq("id", complaintId)
     .single();
 
   const previousStatus = currentComplaint?.status ?? "submitted";
-  const newStatus = workerId ? "processing" : "assigned";
+  
+  // Transition rule:
+  // If submitted -> assigned.
+  // If already processing/reopened/assigned -> maintain status or assigned.
+  const newStatus = previousStatus === "submitted" ? "assigned" : (currentComplaint?.status ?? "assigned");
 
   let resolvedDeptId = departmentId || null;
-  if (workerId && !resolvedDeptId) {
+
+  if (workerId) {
     const { data: workerProfile } = await adminClient
       .from("profiles")
       .select("department_id")
       .eq("id", workerId)
       .single();
+
     if (workerProfile?.department_id) {
+      // Worker already belongs to a department: strictly enforce their department
       resolvedDeptId = workerProfile.department_id;
+    } else if (resolvedDeptId) {
+      // Worker did not have a department: assign them to this single department
+      await adminClient
+        .from("profiles")
+        .update({ department_id: resolvedDeptId })
+        .eq("id", workerId);
     }
   }
 
@@ -90,7 +103,7 @@ export async function assignComplaint(
     new_status: newStatus,
     actor_id: user.id,
     note: workerId
-      ? "Assigned to worker & department — work in progress"
+      ? "Assigned to worker and their department"
       : "Assigned to department for Departmental Admin delegation",
   });
 
@@ -131,7 +144,8 @@ export async function unassignComplaint(complaintId: string) {
       assigned_department_id: null,
       assigned_by: null,
       assigned_at: null,
-      status: "submitted",
+      // NOTE: Do NOT reset status here — DB trigger blocks backward transitions.
+      // The complaint stays at its current status (e.g. 'assigned') after unassigning.
     })
     .eq("id", complaintId);
 
@@ -140,9 +154,9 @@ export async function unassignComplaint(complaintId: string) {
   await adminClient.from("complaint_status_history").insert({
     complaint_id: complaintId,
     previous_status: complaint?.status ?? "assigned",
-    new_status: "submitted",
+    new_status: complaint?.status ?? "assigned",
     actor_id: user.id,
-    note: "Unassigned by admin",
+    note: "Unassigned by admin (worker/dept cleared, status retained)",
   });
 
   await adminClient.from("audit_log").insert({

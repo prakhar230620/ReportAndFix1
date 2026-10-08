@@ -102,6 +102,21 @@ export default async function ReportQrPage({
 
   if (!user) {
     const next = `/report/${token}`;
+    const { data: joinRow } = await supabase
+      .from("org_join_codes")
+      .select("code")
+      .eq("college_id", location.college_id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const signupQuery = new URLSearchParams({
+      next,
+      org: location.college_id,
+      ...(joinRow?.code ? { join_code: joinRow.code, code: joinRow.code } : {}),
+    }).toString();
+
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center gap-4 px-6 text-center">
         <BackButton className="self-start" />
@@ -116,7 +131,7 @@ export default async function ReportQrPage({
             Log in
           </Link>
           <Link
-            href={`/signup?next=${encodeURIComponent(next)}`}
+            href={`/signup?${signupQuery}`}
             className="rounded-md border border-neutral-300 px-4 py-2"
           >
             Sign up

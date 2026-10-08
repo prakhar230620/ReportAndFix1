@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertTriangle, Trash2, CheckSquare, Square } from "lucide-react";
 import { ButtonSpinner } from "@/app/components/Spinner";
 import { createDeletionRequest } from "@/app/admin/data-deletion/actions";
+import Link from "next/link";
 
 
 type Complaint = {
@@ -136,13 +137,16 @@ export default function DataDeletionForm({
               A download charge of <strong>₹{downloadChargePaise / 100}</strong> will apply before the data archive is generated.
             </p>
           )}
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-red-400" />
-            <span className="text-xs text-red-800">
-              I understand this deletion is <strong>permanent and irreversible</strong>. I have read and agree to the deletion policy.
-            </span>
-          </label>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-red-400" />
+              <span className="text-xs text-red-800">
+                I understand this deletion is <strong>permanent and irreversible</strong>. I have read and agree to the{" "}
+                <Link href="/terms#data-deletion" target="_blank" className="underline font-semibold hover:text-red-900">
+                  deletion policy
+                </Link>.
+              </span>
+            </label>
         </div>
       )}
 

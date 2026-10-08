@@ -77,6 +77,19 @@ export default function Hero3DCanvas() {
     const particleMesh = new THREE.Points(particleGeometry, particleMaterial);
     scene.add(particleMesh);
 
+    let isContextLost = false;
+    const handleContextLost = (e: Event) => {
+      e.preventDefault();
+      isContextLost = true;
+      cancelAnimationFrame(animationFrameId);
+    };
+    const handleContextRestored = () => {
+      isContextLost = false;
+      animate();
+    };
+    renderer.domElement.addEventListener("webglcontextlost", handleContextLost, false);
+    renderer.domElement.addEventListener("webglcontextrestored", handleContextRestored, false);
+
     let isVisible = true;
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -86,58 +99,76 @@ export default function Hero3DCanvas() {
     );
     observer.observe(mount);
 
-    // Mouse Tracking for Smooth Parallax
+    // Mouse Tracking for Smooth Parallax (Throttled)
     let targetX = 0;
     let targetY = 0;
+    let mouseTimeout: any = null;
     const handleMouseMove = (event: MouseEvent) => {
-      if (!isVisible) return;
+      if (!isVisible || isContextLost) return;
+      if (mouseTimeout) return;
+      mouseTimeout = setTimeout(() => {
+        mouseTimeout = null;
+      }, 30);
       const { innerWidth, innerHeight } = window;
-      targetX = (event.clientX / (innerWidth || 1) - 0.5) * 0.6;
-      targetY = (event.clientY / (innerHeight || 1) - 0.5) * 0.6;
+      targetX = (event.clientX / (innerWidth || 1) - 0.5) * 0.4;
+      targetY = (event.clientY / (innerHeight || 1) - 0.5) * 0.4;
     };
     window.addEventListener("mousemove", handleMouseMove, { passive: true });
 
     // Animation Loop
     let animationFrameId: number;
+    let lastTime = performance.now();
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
-      if (!isVisible) return; // Pause rendering loop when out of viewport!
+      if (!isVisible || isContextLost) return; // Pause rendering loop when out of viewport or context lost
 
-      // Smooth slow auto-rotation
-      sphereMesh.rotation.x += 0.002;
-      sphereMesh.rotation.y += 0.003;
+      const now = performance.now();
+      const delta = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
 
-      innerMesh.rotation.x -= 0.003;
-      innerMesh.rotation.y -= 0.004;
+      // Smooth slow auto-rotation calibrated to delta
+      sphereMesh.rotation.x += 0.12 * delta;
+      sphereMesh.rotation.y += 0.18 * delta;
 
-      particleMesh.rotation.y += 0.0008;
+      innerMesh.rotation.x -= 0.18 * delta;
+      innerMesh.rotation.y -= 0.24 * delta;
+
+      particleMesh.rotation.y += 0.05 * delta;
 
       // Parallax damping
-      camera.position.x += (targetX * 6 - camera.position.x) * 0.05;
-      camera.position.y += (-targetY * 6 - camera.position.y) * 0.05;
+      camera.position.x += (targetX * 5 - camera.position.x) * 0.04;
+      camera.position.y += (-targetY * 5 - camera.position.y) * 0.04;
       camera.lookAt(scene.position);
 
       renderer.render(scene, camera);
     };
     animate();
 
-    // Resize Handler
+    // Throttled Resize Handler
+    let resizeTimer: any = null;
     const handleResize = () => {
-      if (!mount) return;
-      const w = mount.clientWidth;
-      const h = mount.clientHeight;
-      if (w === 0 || h === 0) return;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
+      if (!mount || isContextLost) return;
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        const w = mount.clientWidth;
+        const h = mount.clientHeight;
+        if (w === 0 || h === 0) return;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      }, 150);
     };
     window.addEventListener("resize", handleResize, { passive: true });
 
     return () => {
       observer.disconnect();
       cancelAnimationFrame(animationFrameId);
+      if (resizeTimer) clearTimeout(resizeTimer);
+      if (mouseTimeout) clearTimeout(mouseTimeout);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("resize", handleResize);
+      renderer.domElement.removeEventListener("webglcontextlost", handleContextLost);
+      renderer.domElement.removeEventListener("webglcontextrestored", handleContextRestored);
       if (mount.contains(renderer.domElement)) {
         mount.removeChild(renderer.domElement);
       }

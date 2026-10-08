@@ -25,7 +25,7 @@ type Step =
   | { name: "duplicates"; candidates: DuplicateCandidate[] }
   | { name: "uploading"; progress: string }
   | { name: "joined"; voteCount: number | null }
-  | { name: "created"; publicId: string };
+  | { name: "created"; publicId: string; photoWarning?: string };
 
 export default function ReportForm({
   token,
@@ -148,11 +148,10 @@ export default function ReportForm({
         );
         const failed = uploadResults.filter(Boolean) as { index: number; error: string }[];
         if (failed.length > 0) {
-          setFormError(
-            `Complaint created (${result.complaint.public_id}), but ${failed.length} photo(s) failed: ${failed
-              .map((f) => f.error)
-              .join("; ")}`
-          );
+          const warningMsg = `${failed.length} photo(s) failed to upload: ${failed.map((f) => f.error).join("; ")}`;
+          setFormError(`Complaint created (${result.complaint.public_id}), but ${warningMsg}`);
+          setStep({ name: "created", publicId: result.complaint.public_id, photoWarning: warningMsg });
+          return;
         }
       }
 
@@ -184,6 +183,11 @@ export default function ReportForm({
         <p className="text-neutral-600">
           Your complaint ID is <span className="font-mono">{step.publicId}</span>.
         </p>
+        {step.photoWarning && (
+          <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-800 border border-amber-200">
+            ⚠️ {step.photoWarning}
+          </p>
+        )}
         <p className="text-sm text-neutral-500">
           <Link href={`/issues/${step.publicId}`} className="font-medium text-blue-600 hover:text-blue-700">View it on the public feed</Link>
         </p>
@@ -360,12 +364,12 @@ export default function ReportForm({
       </p>
 
       <button
-        disabled={busy || categories.length === 0}
+        disabled={busy || compressing || categories.length === 0}
         onClick={handleCheckDuplicates}
         className="mt-2 flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 font-medium text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-50"
       >
-        {busy && <ButtonSpinner />}
-        {busy ? "Checking…" : "Continue"}
+        {(busy || compressing) && <ButtonSpinner />}
+        {compressing ? "Compressing photo…" : busy ? "Checking…" : "Continue"}
       </button>
     </main>
   );

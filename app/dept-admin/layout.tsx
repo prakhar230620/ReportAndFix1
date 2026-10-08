@@ -98,8 +98,7 @@ export default async function DeptAdminLayout({
           userId: user.id,
         }}
         items={[
-          { href: "/", label: "Home" },
-          { href: "/dept-admin", label: "Dashboard" },
+          { href: "/dept-admin", label: "Home" },
           { href: "/dept-admin/queue", label: "Queue", badge: queuePendingCount },
           { href: "/dept-admin/messages", label: "Messages" },
           { href: "/dept-admin/workers", label: "Workers" },

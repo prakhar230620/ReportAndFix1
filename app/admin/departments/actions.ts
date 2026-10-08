@@ -88,11 +88,26 @@ export async function setWorkerDepartment(workerId: string, departmentId: string
     return { error: "Not authorised" };
   }
   const adminClient = createAdminClient();
+
+  // Update profiles.department_id (primary dept for display/routing)
   const { error } = await adminClient
     .from("profiles")
     .update({ department_id: departmentId })
     .eq("id", workerId);
   if (error) return { error: error.message };
+
+  // Also maintain department_ids array in user_metadata for multi-dept support
+  if (departmentId) {
+    const { data: { user: workerUser } } = await adminClient.auth.admin.getUserById(workerId);
+    const existingIds: string[] = workerUser?.user_metadata?.department_ids ?? [];
+    if (!existingIds.includes(departmentId)) {
+      const newIds = [...existingIds, departmentId];
+      await adminClient.auth.admin.updateUserById(workerId, {
+        user_metadata: { ...workerUser?.user_metadata, department_ids: newIds },
+      });
+    }
+  }
+
   revalidatePath("/admin/departments");
   revalidatePath("/dept-admin/workers");
   revalidatePath("/admin/role-requests");

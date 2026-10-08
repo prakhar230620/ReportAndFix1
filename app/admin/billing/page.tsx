@@ -60,6 +60,7 @@ export default async function BillingPage() {
       .from("payment_transactions")
       .select("id, amount_paise, status, payment_method, invoice_number, description, created_at")
       .eq("college_id", collegeId)
+      .neq("status", "created")
       .order("created_at", { ascending: false })
       .limit(10),
     Promise.all([
@@ -253,13 +254,13 @@ export default async function BillingPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                     t.status === "paid" ? "bg-emerald-100 text-emerald-800" :
                     t.status === "failed" ? "bg-red-100 text-red-800" :
                     t.status === "refunded" ? "bg-blue-100 text-blue-800" :
-                    "bg-neutral-100 text-neutral-700"
+                    "bg-amber-100 text-amber-800"
                   }`}>
-                    {t.status}
+                    {t.status === "created" ? "Pending / Unpaid" : t.status.toUpperCase()}
                   </span>
                   <span className="font-semibold text-neutral-900">
                     ₹{((t.amount_paise ?? 0) / 100).toLocaleString("en-IN")}

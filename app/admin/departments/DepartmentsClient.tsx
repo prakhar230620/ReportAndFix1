@@ -304,13 +304,13 @@ function DepartmentCard({ dept, workers, deptAdmins, allWorkers, allDepartments,
             </div>
           )}
 
-          {!dept.suspended && available.length > 0 && (
+          {!dept.suspended && (
             <div className="mt-1 flex gap-2">
               <select value={addWorkerId} onChange={(e) => setAddWorkerId(e.target.value)} className="flex-1 rounded-md border border-neutral-300 px-2 py-1 text-xs">
-                <option value="">Add existing worker to this dept...</option>
-                {available.map((w) => (
+                <option value="">Add worker to this dept (multi-dept allowed)...</option>
+                {allWorkers.filter((w) => w.department_id !== dept.id).map((w) => (
                   <option key={w.id} value={w.id}>
-                    {w.display_name ?? w.id} {w.department_id ? "(move from other dept)" : "(unassigned)"}
+                    {w.display_name ?? w.id} {w.department_id ? "(also in other dept)" : "(unassigned)"}
                   </option>
                 ))}
               </select>

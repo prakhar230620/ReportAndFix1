@@ -57,7 +57,8 @@ export async function POST(req: NextRequest) {
     .select("id, code, qr_token")
     .single();
 
-  const qrUrl = `${process.env.NEXT_PUBLIC_APP_URL}/signup?qr=${newCode?.qr_token}&org=${collegeId}`;
+  const origin = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+  const qrUrl = `${origin}/signup?qr=${newCode?.qr_token}&org=${collegeId}&join_code=${newCode?.code}&code=${newCode?.code}`;
 
   return NextResponse.json({ ok: true, code: newCode?.code, qrUrl });
 }
@@ -89,6 +90,7 @@ export async function GET(req: NextRequest) {
 
   if (!code) return NextResponse.json({ code: null });
 
-  const qrUrl = `${process.env.NEXT_PUBLIC_APP_URL}/signup?qr=${code.qr_token}&org=${profile.college_id}`;
+  const origin = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+  const qrUrl = `${origin}/signup?qr=${code.qr_token}&org=${profile.college_id}&join_code=${code.code}&code=${code.code}`;
   return NextResponse.json({ code: code.code, qrUrl, createdAt: code.created_at });
 }

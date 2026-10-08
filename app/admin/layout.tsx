@@ -102,7 +102,7 @@ export default async function AdminLayout({
           collegeId: profile.college_id,
         }}
         items={[
-          { href: "/", label: "Home" },
+          { href: "/admin/queue", label: "Home" },
           { href: "/admin/queue", label: "Queue", badge: queuePendingCount },
           { href: "/admin/messages", label: "Messages" },
           { href: "/admin/role-requests", label: "Role Requests", badge: roleRequestCount },
@@ -110,6 +110,7 @@ export default async function AdminLayout({
           { href: "/admin/locations", label: "Locations" },
           { href: "/admin/analytics", label: "Analytics" },
           { href: "/admin/billing", label: "Billing" },
+          { href: "/admin/billing/transactions", label: "Transactions" },
           { href: "/admin/data-deletion", label: "Data Deletion" },
           { href: "/admin/export", label: "Export" },
         ]}

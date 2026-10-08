@@ -75,47 +75,65 @@ export async function POST(req: NextRequest) {
     const qrPngBytes = Buffer.from(qrPngDataUrl.split(",")[1], "base64");
     const qrImage = await pdfDoc.embedPng(qrPngBytes);
 
-    const qrSize = Math.min(CELL_W, CELL_H) - 90;
+    // Layout constants for this cell
+    const HEADER_H = 22;   // title bar height at top
+    const FOOTER_H = 48;   // text area height at bottom
+    const qrSize = Math.min(CELL_W, CELL_H) - HEADER_H - FOOTER_H - 20;
     const qrX = cellX + (CELL_W - qrSize) / 2;
-    const qrY = cellY + 40;
+    const qrY = cellY + FOOTER_H + 10;
 
+    // Header: "ReportAndFix" brand
+    page.drawRectangle({
+      x: cellX,
+      y: cellY + CELL_H - HEADER_H,
+      width: CELL_W,
+      height: HEADER_H,
+      color: rgb(0.08, 0.08, 0.08),
+    });
     page.drawText("ReportAndFix", {
-      x: cellX + 12,
-      y: cellY + CELL_H - 20,
-      size: 12,
+      x: cellX + 10,
+      y: cellY + CELL_H - HEADER_H + 6,
+      size: 10,
       font,
-      color: rgb(0.1, 0.1, 0.1),
+      color: rgb(1, 1, 1),
     });
 
+    // QR code
     page.drawImage(qrImage, { x: qrX, y: qrY, width: qrSize, height: qrSize });
 
+    // Footer text area
     const { data: fullPath } = await supabase.rpc("location_full_path" as never, {
       p_location_id: loc.id,
     } as never);
     const pathText = (fullPath as unknown as string) ?? loc.name;
 
-    const nameText = loc.name.length > 30 ? loc.name.slice(0, 30) + "…" : loc.name;
+    const nameText = loc.name.length > 32 ? loc.name.slice(0, 32) + "…" : loc.name;
+    const pathStr = pathText.length > 48 ? pathText.slice(0, 48) + "…" : pathText;
+
+    // Line 1: Location name (bold, larger)
     page.drawText(nameText, {
-      x: cellX + 12,
-      y: cellY + 26,
+      x: cellX + 10,
+      y: cellY + FOOTER_H - 14,
       size: 11,
       font,
       color: rgb(0, 0, 0),
     });
-    page.drawText(pathText.length > 45 ? pathText.slice(0, 45) + "…" : pathText, {
-      x: cellX + 12,
-      y: cellY + 12,
-      size: 9,
+    // Line 2: Full path (small, grey)
+    page.drawText(pathStr, {
+      x: cellX + 10,
+      y: cellY + FOOTER_H - 28,
+      size: 8,
       font: fontRegular,
-      color: rgb(0.3, 0.3, 0.3),
+      color: rgb(0.35, 0.35, 0.35),
     });
+    // Line 3: Location code (bottom-right corner, faintest)
     if (loc.location_code) {
       page.drawText(loc.location_code, {
-        x: cellX + CELL_W - 70,
-        y: cellY + 12,
-        size: 9,
+        x: cellX + CELL_W - 60,
+        y: cellY + FOOTER_H - 42,
+        size: 8,
         font: fontRegular,
-        color: rgb(0.5, 0.5, 0.5),
+        color: rgb(0.55, 0.55, 0.55),
       });
     }
 

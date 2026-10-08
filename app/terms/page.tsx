@@ -84,7 +84,7 @@ export default function TermsPage() {
             </ul>
           </section>
 
-          <section className="border-t border-neutral-100 pt-6">
+          <section id="data-deletion" className="border-t border-neutral-100 pt-6 scroll-mt-20">
             <h2 className="text-lg font-bold text-neutral-900 mb-2 flex items-center gap-2">
               <Trash2 className="h-5 w-5 text-red-600" />
               4. Data Deletion, Mandatory Backup, & Retention

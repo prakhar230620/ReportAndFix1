@@ -217,6 +217,7 @@ export default async function HomePage() {
               <Link href="#pricing" className="hover:text-white transition">Pricing</Link>
               <Link href="/docs" className="hover:text-white transition">Documentation</Link>
               <Link href="/terms" className="hover:text-white transition">Terms of Service</Link>
+              <Link href="/terms#data-deletion" className="hover:text-white transition">Data Deletion Policy</Link>
               <Link href="#contact" className="hover:text-white transition">Contact Us</Link>
             </div>
           </div>
@@ -342,6 +343,7 @@ export default async function HomePage() {
   }
 
   links.push({ href: "/docs", label: "Documentation & FAQ", sub: "Platform guides & help" });
+  links.push({ href: "/terms", label: "Terms of Service & Policies", sub: "Platform rules, SLAs & data deletion" });
   links.push({ href: "/profile", label: "My Profile", sub: "Account settings & credentials" });
 
   const orgLogo = (profile?.colleges as any)?.logo_url;

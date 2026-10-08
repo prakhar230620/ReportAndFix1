@@ -66,7 +66,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { data: complaint, error: complaintError } = await supabase
+  const adminClient = createAdminClient();
+
+  const { data: complaint, error: complaintError } = await adminClient
     .from("complaints")
     .select("id, college_id")
     .eq("id", complaintId)
@@ -77,7 +79,6 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Plan Storage Quota Enforcement ──
-  const adminClient = createAdminClient();
   const { data: sub } = await adminClient
     .from("org_subscriptions")
     .select("status, plans(max_storage_gb)")
@@ -110,13 +111,30 @@ export async function POST(req: NextRequest) {
   const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
   const storagePath = `${complaint.college_id}/${complaintId}/${crypto.randomUUID()}.${ext}`;
 
-  // Upload to Backblaze B2
+  // Upload to Backblaze B2 with Supabase Storage fallback
+  let uploaded = false;
   try {
     const { uploadToB2 } = await import("@/lib/b2");
     await uploadToB2(storagePath, buffer, file.type);
+    uploaded = true;
   } catch (err: any) {
-    console.error("Backblaze B2 upload error:", err);
-    return NextResponse.json({ error: err.message || "Failed to upload to Backblaze B2." }, { status: 500 });
+    console.warn("Backblaze B2 upload error, attempting Supabase Storage fallback:", err);
+    try {
+      const { error: sbStorageErr } = await adminClient.storage
+        .from("complaint-media")
+        .upload(storagePath, buffer, { contentType: file.type, upsert: true });
+      if (!sbStorageErr) {
+        uploaded = true;
+      } else {
+        console.error("Supabase storage fallback error:", sbStorageErr);
+      }
+    } catch (fbErr) {
+      console.error("Storage fallback failed:", fbErr);
+    }
+  }
+
+  if (!uploaded) {
+    return NextResponse.json({ error: "Failed to store image in storage backend." }, { status: 500 });
   }
 
   // Pre-warm in Redis cache so first view doesn't incur storage egress
@@ -134,7 +152,8 @@ export async function POST(req: NextRequest) {
     console.warn("Redis pre-cache warning:", err);
   }
 
-  const { data: mediaRow, error: mediaError } = await supabase
+  // Insert using adminClient to avoid RLS block for authenticated reporters
+  const { data: mediaRow, error: mediaError } = await adminClient
     .from("complaint_media")
     .insert({
       complaint_id: complaintId,
