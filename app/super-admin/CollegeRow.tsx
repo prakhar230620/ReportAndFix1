@@ -7,6 +7,7 @@ import {
   softDeleteCollege,
   restoreCollege,
   permanentlyDeleteCollege,
+  manageOrgSubscriptionManual,
 } from "./actions";
 
 export type Organization = {
@@ -14,6 +15,8 @@ export type Organization = {
   name: string;
   category?: string | null;
   subscription_status: string;
+  subscription_plan?: string | null;
+  camera_mode?: string | null;
   logo_url: string | null;
   address?: string | null;
   contact_email?: string | null;
@@ -47,6 +50,7 @@ export default function CollegeRow({ college }: { college: Organization }) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [permanentDeleteOpen, setPermanentDeleteOpen] = useState(false);
+  const [planModalOpen, setPlanModalOpen] = useState(false);
 
   // Edit form state
   const [editName, setEditName] = useState(college.name);
@@ -56,6 +60,19 @@ export default function CollegeRow({ college }: { college: Organization }) {
   const [editPhone, setEditPhone] = useState(college.contact_phone ?? "");
   const [editAllowWorker, setEditAllowWorker] = useState(college.allow_worker_signup ?? true);
   const [editAllowAdmin, setEditAllowAdmin] = useState(college.allow_admin_signup ?? true);
+  const [editCameraMode, setEditCameraMode] = useState(college.camera_mode ?? "both");
+
+  // Plan modal state
+  const [planId, setPlanId] = useState("starter");
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
+  const [paymentMethod, setPaymentMethod] = useState("upi");
+  const [txnRef, setTxnRef] = useState("");
+  const [payerName, setPayerName] = useState("");
+  const [payerDesignation, setPayerDesignation] = useState("Administrator");
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [planSuccess, setPlanSuccess] = useState<string | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
 
   const isPendingDeletion = college.subscription_status?.startsWith("pending_deletion");
   let daysLeft = 30;
@@ -112,6 +129,7 @@ export default function CollegeRow({ college }: { college: Organization }) {
       fd.set("contact_phone", editPhone);
       fd.set("allow_worker_signup", String(editAllowWorker));
       fd.set("allow_admin_signup", String(editAllowAdmin));
+      fd.set("camera_mode", editCameraMode);
 
       const res = await updateCollege(college.id, fd);
       if (res.error) {
@@ -120,6 +138,49 @@ export default function CollegeRow({ college }: { college: Organization }) {
         setEditOpen(false);
       }
     });
+  }
+
+  async function handlePlanAction(actionType: "assign" | "suspend" | "continue" | "cancel") {
+    setPlanError(null);
+    setPlanSuccess(null);
+    setPlanLoading(true);
+
+    try {
+      const fd = new FormData();
+      fd.set("college_id", college.id);
+      fd.set("action_type", actionType);
+
+      if (actionType === "assign") {
+        fd.set("plan_id", planId);
+        fd.set("billing_cycle", billingCycle);
+        fd.set("payment_method", paymentMethod);
+        fd.set("transaction_reference", txnRef);
+        fd.set("payer_name", payerName);
+        fd.set("payer_designation", payerDesignation);
+        if (proofFile) {
+          fd.set("file", proofFile);
+        }
+      }
+
+      const res = await manageOrgSubscriptionManual(fd);
+      if (res?.error) {
+        setPlanError(res.error);
+      } else {
+        setPlanSuccess(
+          actionType === "assign"
+            ? "Plan assigned and verified successfully!"
+            : `Subscription status updated to ${actionType} successfully!`
+        );
+        setTimeout(() => {
+          setPlanModalOpen(false);
+          setPlanSuccess(null);
+        }, 1500);
+      }
+    } catch (err: any) {
+      setPlanError(err?.message ?? "An error occurred");
+    } finally {
+      setPlanLoading(false);
+    }
   }
 
   function handleSoftDelete() {
@@ -195,6 +256,18 @@ export default function CollegeRow({ college }: { college: Organization }) {
                 {college.category ?? "General"}
               </span>
 
+              {/* Plan Badge */}
+              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-indigo-700 border border-indigo-200">
+                Plan: {college.subscription_plan ? college.subscription_plan.toUpperCase() : "NO PLAN"}
+              </span>
+
+              {/* Camera Policy Badge */}
+              {college.camera_mode === "manual_only" && (
+                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 border border-amber-200">
+                  📷 Cameras Restricted
+                </span>
+              )}
+
               {/* Status Badge */}
               {isPendingDeletion ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
@@ -241,6 +314,13 @@ export default function CollegeRow({ college }: { college: Organization }) {
             </>
           ) : (
             <>
+              <button
+                onClick={() => setPlanModalOpen(true)}
+                className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+              >
+                💳 Manage Plan
+              </button>
+
               <button
                 onClick={() => setEditOpen(true)}
                 disabled={pending}
@@ -359,6 +439,22 @@ export default function CollegeRow({ college }: { college: Organization }) {
                 </div>
               </div>
 
+              <div>
+                <label className="mb-1 block font-medium text-neutral-700">Camera & Verification Policy</label>
+                <select
+                  value={editCameraMode}
+                  onChange={(e) => setEditCameraMode(e.target.value)}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 focus:border-neutral-900 focus:outline-none"
+                >
+                  <option value="both">Both (Camera & File upload permitted)</option>
+                  <option value="camera_only">Camera Only (Strict live photo verification required)</option>
+                  <option value="manual_only">Manual / Restricted Cameras (Mobile cameras banned; text resolution, photos optional)</option>
+                </select>
+                <p className="mt-1 text-xs text-neutral-500">
+                  Select "Manual / Restricted Cameras" for institutions with strict camera bans. Workers can resolve tasks with text notes.
+                </p>
+              </div>
+
               <div className="flex flex-col gap-2 rounded-md bg-neutral-50 p-3">
                 <span className="font-medium text-neutral-800">Sign-up Permissions</span>
                 <label className="flex items-center gap-2 text-xs text-neutral-700">
@@ -472,6 +568,247 @@ export default function CollegeRow({ college }: { college: Organization }) {
                 {pending ? "Permanently Deleting..." : "Permanently Delete Now"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Plan / Offline Subscription Modal */}
+      {planModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl border border-neutral-200 bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between border-b pb-3">
+              <div>
+                <h3 className="text-lg font-bold text-neutral-900">Manage Subscription</h3>
+                <p className="text-xs text-neutral-500">{college.name}</p>
+              </div>
+              <button
+                onClick={() => setPlanModalOpen(false)}
+                className="text-neutral-400 hover:text-neutral-600 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {planSuccess && (
+              <div className="mb-4 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-800 font-medium">
+                ✓ {planSuccess}
+              </div>
+            )}
+
+            {planError && (
+              <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-3 text-xs text-red-800 font-medium">
+                ⚠️ {planError}
+              </div>
+            )}
+
+            {/* Quick Status & Actions */}
+            <div className="mb-5 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <div>
+                  <span className="text-neutral-500 font-medium">Current Status: </span>
+                  <span className="font-bold text-neutral-900 uppercase">
+                    {college.subscription_status}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-neutral-500 font-medium">Active Plan: </span>
+                  <span className="font-bold text-indigo-700 uppercase">
+                    {college.subscription_plan ?? "None"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 border-t pt-3">
+                {college.subscription_status !== "suspended" ? (
+                  <button
+                    type="button"
+                    onClick={() => handlePlanAction("suspend")}
+                    disabled={planLoading}
+                    className="rounded border border-amber-300 bg-white px-2.5 py-1 font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-40"
+                  >
+                    Freeze / Suspend Plan
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handlePlanAction("continue")}
+                    disabled={planLoading}
+                    className="rounded border border-emerald-300 bg-white px-2.5 py-1 font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-40"
+                  >
+                    Reactivate Plan
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handlePlanAction("cancel")}
+                  disabled={planLoading}
+                  className="rounded border border-red-300 bg-white px-2.5 py-1 font-medium text-red-700 hover:bg-red-50 disabled:opacity-40"
+                >
+                  Cancel Subscription
+                </button>
+              </div>
+            </div>
+
+            {/* Assign Plan Form */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handlePlanAction("assign");
+              }}
+              className="flex flex-col gap-4 text-xs"
+            >
+              <div className="border-b pb-2">
+                <h4 className="font-semibold text-neutral-900 text-sm">
+                  Assign or Renew Subscription Plan
+                </h4>
+                <p className="text-neutral-500 text-[11px]">
+                  Direct plan assignment with mandatory online transaction proof and AI fraud detection.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block font-medium text-neutral-700">Select Plan *</label>
+                  <select
+                    value={planId}
+                    onChange={(e) => setPlanId(e.target.value)}
+                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 focus:border-neutral-900 focus:outline-none"
+                  >
+                    <option value="starter">Starter (₹499/mo | 100 complaints)</option>
+                    <option value="standard">Standard (₹1,499/mo | 500 complaints + Chat)</option>
+                    <option value="professional">Professional (₹3,499/mo | 2,000 complaints + Export)</option>
+                    <option value="enterprise">Enterprise (₹9,999/mo | Unlimited + SLA)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block font-medium text-neutral-700">Billing Cycle *</label>
+                  <select
+                    value={billingCycle}
+                    onChange={(e) => setBillingCycle(e.target.value as "monthly" | "yearly")}
+                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 focus:border-neutral-900 focus:outline-none"
+                  >
+                    <option value="monthly">Monthly (30 Days)</option>
+                    <option value="yearly">Yearly (365 Days - 10x Price)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Online Payment Method */}
+              <div>
+                <label className="mb-1 block font-medium text-neutral-700">Online Payment Method *</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: "upi", label: "UPI / QR", desc: "GooglePay / PhonePe" },
+                    { id: "netbanking", label: "NetBanking", desc: "NEFT / RTGS / IMPS" },
+                    { id: "card", label: "Cards / RuPay", desc: "Merchant Gateway" },
+                  ].map((m) => (
+                    <label
+                      key={m.id}
+                      className={`flex flex-col rounded-lg border p-2 cursor-pointer transition-all ${
+                        paymentMethod === m.id
+                          ? "border-neutral-900 bg-neutral-900 text-white"
+                          : "border-neutral-200 bg-neutral-50 text-neutral-700 hover:border-neutral-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="payment_method"
+                        value={m.id}
+                        checked={paymentMethod === m.id}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="sr-only"
+                      />
+                      <span className="font-semibold text-xs">{m.label}</span>
+                      <span className={`text-[10px] ${paymentMethod === m.id ? "text-neutral-300" : "text-neutral-400"}`}>
+                        {m.desc}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-amber-700 bg-amber-50 rounded p-1.5 border border-amber-200">
+                  <span>⚠️</span>
+                  <span><strong>No Cash Payments:</strong> Cash transactions are strictly disallowed per institutional audit policies.</span>
+                </div>
+              </div>
+
+              {/* Transaction Reference & Payer */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block font-medium text-neutral-700">
+                    Unique Transaction Ref (UTR / Txn ID) *
+                  </label>
+                  <input
+                    required
+                    value={txnRef}
+                    onChange={(e) => setTxnRef(e.target.value)}
+                    placeholder="e.g. 427819827364"
+                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 focus:border-neutral-900 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block font-medium text-neutral-700">Payer Name *</label>
+                  <input
+                    required
+                    value={payerName}
+                    onChange={(e) => setPayerName(e.target.value)}
+                    placeholder="e.g. Dr. Rajesh Sharma"
+                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 focus:border-neutral-900 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block font-medium text-neutral-700">Payer Designation / Role</label>
+                <input
+                  value={payerDesignation}
+                  onChange={(e) => setPayerDesignation(e.target.value)}
+                  placeholder="e.g. Principal / Registrar / Operations Head"
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 focus:border-neutral-900 focus:outline-none"
+                />
+              </div>
+
+              {/* Proof File with AI Detection Notice */}
+              <div>
+                <label className="mb-1 block font-medium text-neutral-700">
+                  Payment Proof Document (Screenshot or PDF) *
+                </label>
+                <input
+                  required
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,application/pdf"
+                  onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-1.5 text-neutral-700 focus:border-neutral-900 focus:outline-none"
+                />
+                <div className="mt-2 rounded-md bg-blue-50 border border-blue-200 p-2 text-[11px] text-blue-900">
+                  <p className="font-semibold flex items-center gap-1">
+                    <span>🤖</span> AI Fraud & Deepfake Detection Active
+                  </p>
+                  <p className="mt-0.5 text-blue-800">
+                    Uploaded proofs are automatically analyzed for synthetic AI generation, Midjourney / Stable Diffusion tags, and image manipulation. Fake receipts will be rejected.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3 flex justify-end gap-2 border-t pt-3">
+                <button
+                  type="button"
+                  onClick={() => setPlanModalOpen(false)}
+                  className="rounded-md border border-neutral-300 px-4 py-2 font-medium text-neutral-700 hover:bg-neutral-50"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={planLoading}
+                  className="rounded-md bg-neutral-900 px-4 py-2 font-medium text-white hover:bg-neutral-800 disabled:opacity-40"
+                >
+                  {planLoading ? "Verifying & Assigning..." : "Assign & Activate Plan"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

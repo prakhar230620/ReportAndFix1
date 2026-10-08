@@ -16,6 +16,20 @@ export type OrgAnalytics = {
   category: string;
   status: string;
   logo_url: string | null;
+  // Subscription Plan & Quota
+  subscription_plan?: string | null;
+  plan_name?: string;
+  plan_price_monthly_paise?: number;
+  plan_max_storage_gb?: number;
+  plan_max_complaints_per_month?: number;
+  plan_max_workers?: number;
+  plan_messaging_enabled?: boolean;
+  plan_data_download_free?: boolean;
+  current_period_end?: string | null;
+  complaints_monthly_count?: number;
+  complaints_usage_pct?: number;
+  storage_usage_pct?: number;
+  workers_usage_pct?: number;
   // Storage
   file_bytes: number;
   file_count: number;
@@ -87,6 +101,17 @@ export default function AnalyticsDashboardClient({
     "name" | "file_storage" | "db_storage" | "total_storage" | "issues" | "completion"
   >("total_storage");
   const [selectedOrg, setSelectedOrg] = useState<OrgAnalytics | null>(null);
+
+  // Plan breakdown counts
+  const planCounts = useMemo(() => {
+    const counts = { starter: 0, standard: 0, professional: 0, enterprise: 0, other: 0 };
+    organizations.forEach((o) => {
+      const p = (o.subscription_plan || "starter").toLowerCase();
+      if (p in counts) (counts as any)[p]++;
+      else counts.other++;
+    });
+    return counts;
+  }, [organizations]);
 
   // Set initial last updated time
   useEffect(() => {
@@ -252,6 +277,32 @@ export default function AnalyticsDashboardClient({
         </div>
       </div>
 
+      {/* Subscription Plans & Quota Health Card */}
+      <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="text-base font-semibold text-neutral-900">Subscription Plans & Quota Health</h2>
+            <p className="text-xs text-neutral-500">
+              Live subscription breakdown, active institutional tiers, and quota utilization.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-slate-100 border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700">
+              Starter: <strong>{planCounts.starter}</strong>
+            </span>
+            <span className="rounded-full bg-blue-50 border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-700">
+              Standard: <strong>{planCounts.standard}</strong>
+            </span>
+            <span className="rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-xs font-medium text-indigo-700">
+              Professional: <strong>{planCounts.professional}</strong>
+            </span>
+            <span className="rounded-full bg-purple-50 border border-purple-200 px-2.5 py-1 text-xs font-medium text-purple-700">
+              Enterprise: <strong>{planCounts.enterprise}</strong>
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Global Storage Distribution Bar */}
       <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
@@ -284,6 +335,9 @@ export default function AnalyticsDashboardClient({
                     <span>{org.name}</span>
                     <span className="rounded bg-neutral-200/70 px-1.5 py-0.2 text-[10px] text-neutral-600 uppercase">
                       {org.category}
+                    </span>
+                    <span className="rounded bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 text-[10px] font-semibold text-indigo-700 uppercase">
+                      {org.plan_name ?? "Starter"}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 text-neutral-500">
@@ -364,6 +418,7 @@ export default function AnalyticsDashboardClient({
           <thead className="border-b border-neutral-200 bg-neutral-50/80 font-semibold text-neutral-600 uppercase tracking-wider text-[11px]">
             <tr>
               <th className="px-4 py-3.5">Organisation</th>
+              <th className="px-4 py-3.5">Plan & Quota Usage</th>
               <th className="px-4 py-3.5">File Storage</th>
               <th className="px-4 py-3.5">Database Storage</th>
               <th className="px-4 py-3.5">Total Storage</th>
@@ -376,7 +431,7 @@ export default function AnalyticsDashboardClient({
           <tbody className="divide-y divide-neutral-100">
             {sortedAndFiltered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-8 text-center text-sm text-neutral-400">
+                <td colSpan={9} className="py-8 text-center text-sm text-neutral-400">
                   No organisations match your search.
                 </td>
               </tr>
@@ -412,6 +467,23 @@ export default function AnalyticsDashboardClient({
                               {org.status}
                             </span>
                           </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Plan & Quotas */}
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="rounded bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 uppercase">
+                          {org.plan_name ?? "Starter"}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-col gap-0.5 text-[11px] text-neutral-600">
+                        <div>
+                          📋 Issues: <strong className="text-neutral-900">{org.total_issues}</strong> / {org.plan_max_complaints_per_month === -1 ? "∞" : org.plan_max_complaints_per_month}
+                        </div>
+                        <div>
+                          💾 Limit: {org.plan_max_storage_gb ?? 2} GB ({org.storage_usage_pct ?? 0}% used)
                         </div>
                       </div>
                     </td>
@@ -520,6 +592,91 @@ export default function AnalyticsDashboardClient({
             </div>
 
             <div className="mt-5 flex flex-col gap-6 text-sm">
+              {/* Subscription Plan & Quota Footprint */}
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 pb-3">
+                  <div>
+                    <span className="text-xs font-medium text-neutral-500">Subscription Tier</span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-base font-bold text-indigo-950 uppercase">
+                        {selectedOrg.plan_name ?? "Starter"}
+                      </span>
+                      <span className="rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 uppercase">
+                        {selectedOrg.status}
+                      </span>
+                    </div>
+                  </div>
+                  {selectedOrg.current_period_end && (
+                    <div className="text-right text-xs text-neutral-500">
+                      <span>Renews / Expires: </span>
+                      <strong className="text-neutral-900">
+                        {new Date(selectedOrg.current_period_end).toLocaleDateString()}
+                      </strong>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-lg bg-white p-3 border border-indigo-100/80 shadow-xs">
+                    <div className="text-xs text-neutral-500 font-medium">Monthly Complaints</div>
+                    <div className="mt-1 text-base font-bold text-neutral-900">
+                      {selectedOrg.total_issues} / {selectedOrg.plan_max_complaints_per_month === -1 ? "Unlimited" : selectedOrg.plan_max_complaints_per_month}
+                    </div>
+                    <div className="mt-1.5 h-1.5 w-full rounded-full bg-neutral-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-indigo-600 transition-all duration-300"
+                        style={{ width: `${Math.min(100, selectedOrg.complaints_usage_pct ?? 0)}%` }}
+                      />
+                    </div>
+                    <div className="mt-1 text-[10px] text-neutral-400">
+                      {selectedOrg.complaints_usage_pct ?? 0}% quota used
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg bg-white p-3 border border-indigo-100/80 shadow-xs">
+                    <div className="text-xs text-neutral-500 font-medium">Storage Quota</div>
+                    <div className="mt-1 text-base font-bold text-neutral-900">
+                      {formatBytes(selectedOrg.file_bytes)} / {selectedOrg.plan_max_storage_gb} GB
+                    </div>
+                    <div className="mt-1.5 h-1.5 w-full rounded-full bg-neutral-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-blue-600 transition-all duration-300"
+                        style={{ width: `${Math.min(100, selectedOrg.storage_usage_pct ?? 0)}%` }}
+                      />
+                    </div>
+                    <div className="mt-1 text-[10px] text-neutral-400">
+                      {selectedOrg.storage_usage_pct ?? 0}% of allocated limit
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg bg-white p-3 border border-indigo-100/80 shadow-xs">
+                    <div className="text-xs text-neutral-500 font-medium">Worker Seats</div>
+                    <div className="mt-1 text-base font-bold text-neutral-900">
+                      {selectedOrg.workers_count} / {selectedOrg.plan_max_workers === -1 ? "Unlimited" : selectedOrg.plan_max_workers}
+                    </div>
+                    <div className="mt-1.5 h-1.5 w-full rounded-full bg-neutral-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-purple-600 transition-all duration-300"
+                        style={{ width: `${Math.min(100, selectedOrg.workers_usage_pct ?? 0)}%` }}
+                      />
+                    </div>
+                    <div className="mt-1 text-[10px] text-neutral-400">
+                      {selectedOrg.workers_usage_pct ?? 0}% seats active
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-neutral-600 pt-2 border-t border-indigo-100/60">
+                  <span className="flex items-center gap-1 font-medium">
+                    {selectedOrg.plan_messaging_enabled ? "💬 In-app Messaging: Enabled" : "🔒 Messaging: Locked (Standard+)"}
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 font-medium">
+                    {selectedOrg.plan_data_download_free ? "📥 Free Data Export: Enabled" : "🔒 Data Export: Locked (Pro+)"}
+                  </span>
+                </div>
+              </div>
+
               {/* Detailed Storage Footprint */}
               <div>
                 <h4 className="font-semibold text-neutral-900">Storage & Database Footprint</h4>

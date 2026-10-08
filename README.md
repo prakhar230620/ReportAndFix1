@@ -208,3 +208,29 @@ npm run build
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to view the application locally.
+
+---
+
+## 🚀 Recent System Improvements & Bug Fixes
+
+1. **Dynamic Complaint Priority Engine:**
+   - Auto-calculates complaint urgency based on verified community joins scaled against institutional population (`low`, `medium`, `high`, `urgent`).
+   - Automatically promotes critical community issues to top of administrative and worker queues.
+
+2. **AI-Generated Image & Tamper Detection:**
+   - Automated digital forensics pipeline scanning EXIF metadata, Latin-1 binary headers, and PNG `tEXtparameters` for synthetic AI generation (Midjourney, DALL-E, Stable Diffusion).
+   - Rejects manipulated or synthetic proof submissions during manual plan assignment.
+
+3. **Configurable Camera & Verification Policies:**
+   - Supports institutions with strict mobile phone camera bans via `camera_mode`: `both`, `camera_only`, or `manual_only`.
+   - When set to `manual_only`, field staff can complete tasks with descriptive text notes and citizens can report via manual location search without requiring live camera access.
+
+4. **Super Admin Plan Management & Lifecycle Controls:**
+   - Enables Super Admins to manually assign, suspend, reactivate, or cancel subscriptions.
+   - Enforces online payment records (UPI, NetBanking, Cards/RuPay) and strictly prohibits untracked cash transactions.
+
+5. **Live Quota Analytics & Dashboard Enhancements:**
+   - Real-time quota utilization breakdown in Super Admin analytics (Monthly complaints, storage footprint, and worker seats).
+   - WhatsApp-style unread notification dots on active complaints that clear upon inspection.
+   - High-contrast, color-coded status and priority tags across all dashboards.
+   - Performance-optimized 3D Hero canvas utilizing `IntersectionObserver` to eliminate scroll lag and render crashes.

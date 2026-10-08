@@ -16,7 +16,7 @@ export default async function DeptAdminLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, college_id, department_id, colleges(name, logo_url, is_frozen), departments(name)")
+    .select("role, college_id, department_id, colleges(name, logo_url, is_frozen, subscription_status), departments(name)")
     .eq("id", user.id)
     .single();
 
@@ -29,7 +29,10 @@ export default async function DeptAdminLayout({
     redirect("/");
   }
 
-  const isFrozen = (profile.colleges as any)?.is_frozen === true;
+  const collegeData = profile.colleges as any;
+  const isFrozen =
+    collegeData?.is_frozen === true ||
+    ["expired", "frozen", "suspended", "cancelled"].includes(collegeData?.subscription_status ?? "");
   if (isFrozen && profile.role !== "super_admin") {
     return (
       <div className="min-h-screen bg-neutral-50">

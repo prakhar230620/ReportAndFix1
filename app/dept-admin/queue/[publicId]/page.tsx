@@ -4,6 +4,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getMediaUrl } from "@/lib/media";
 import ComplaintMediaGallery from "@/app/admin/queue/ComplaintMediaGallery";
+import { StatusBadge, PriorityBadge, MarkAsRead } from "@/app/components/StatusBadge";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 import DeptAssignForm from "../DeptAssignForm";
 import DeptVerifyActions from "../DeptVerifyActions";
 import {
@@ -178,6 +182,7 @@ export default async function DeptAdminComplaintDetailPage({
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl pb-16">
+      <MarkAsRead complaintId={complaint.id} />
       {/* Top Header Card */}
       <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 pb-3">
@@ -185,14 +190,8 @@ export default async function DeptAdminComplaintDetailPage({
             <span className="font-mono text-sm font-semibold text-neutral-900 bg-neutral-100 px-2.5 py-1 rounded-md border border-neutral-200">
               {complaint.public_id}
             </span>
-            <span
-              className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${statusInfo.bg} ${statusInfo.text}`}
-            >
-              {statusInfo.label}
-            </span>
-            <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-0.5 text-xs font-medium capitalize text-neutral-700">
-              {complaint.priority || "Medium"} priority
-            </span>
+            <StatusBadge status={complaint.status} />
+            <PriorityBadge priority={complaint.priority} />
           </div>
 
           <div className="flex items-center gap-4 text-xs">

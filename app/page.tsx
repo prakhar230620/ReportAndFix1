@@ -348,13 +348,6 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col gap-6 px-4 sm:px-6 py-10">
-      {/* Top Utility Banner to view Landing Page */}
-      <div className="flex items-center justify-between rounded-xl bg-blue-50/80 border border-blue-100 px-4 py-2 text-xs">
-        <span className="text-blue-800 font-medium">Public landing page & interactive 3D hero is live:</span>
-        <Link href="/landing" className="font-bold text-blue-700 hover:text-blue-900 underline flex items-center gap-1">
-          Explore Landing Page & Pricing →
-        </Link>
-      </div>
 
       {/* Organisation / Brand Header */}
       <div className="flex items-center justify-between border-b border-neutral-200 pb-5">

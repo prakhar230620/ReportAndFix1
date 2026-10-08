@@ -10,19 +10,27 @@ export default function Hero3DCanvas() {
     const mount = mountRef.current;
     if (!mount) return;
 
-    // Scene, Camera, Renderer
+    const width = mount.clientWidth || window.innerWidth || 800;
+    const height = mount.clientHeight || window.innerHeight || 600;
+
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        alpha: true,
+        antialias: true,
+        powerPreference: "low-power",
+      });
+    } catch (e) {
+      console.warn("WebGL not supported or failed to initialize:", e);
+      return;
+    }
+
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(
-      45,
-      mount.clientWidth / mount.clientHeight,
-      0.1,
-      1000
-    );
+    const camera = new THREE.PerspectiveCamera(45, width / Math.max(height, 1), 0.1, 1000);
     camera.position.z = 18;
 
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setSize(mount.clientWidth, mount.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     mount.appendChild(renderer.domElement);
 
     // Geometrical Central Polyhedron (Icosahedron)
@@ -48,7 +56,7 @@ export default function Hero3DCanvas() {
     scene.add(innerMesh);
 
     // Surrounding Floating Particles Constellation
-    const particleCount = 140;
+    const particleCount = 100;
     const particlePositions = new Float32Array(particleCount * 3);
     for (let i = 0; i < particleCount * 3; i += 3) {
       particlePositions[i] = (Math.random() - 0.5) * 26;
@@ -69,20 +77,31 @@ export default function Hero3DCanvas() {
     const particleMesh = new THREE.Points(particleGeometry, particleMaterial);
     scene.add(particleMesh);
 
+    let isVisible = true;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(mount);
+
     // Mouse Tracking for Smooth Parallax
     let targetX = 0;
     let targetY = 0;
     const handleMouseMove = (event: MouseEvent) => {
+      if (!isVisible) return;
       const { innerWidth, innerHeight } = window;
-      targetX = (event.clientX / innerWidth - 0.5) * 0.6;
-      targetY = (event.clientY / innerHeight - 0.5) * 0.6;
+      targetX = (event.clientX / (innerWidth || 1) - 0.5) * 0.6;
+      targetY = (event.clientY / (innerHeight || 1) - 0.5) * 0.6;
     };
-    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mousemove", handleMouseMove, { passive: true });
 
     // Animation Loop
     let animationFrameId: number;
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
+      if (!isVisible) return; // Pause rendering loop when out of viewport!
 
       // Smooth slow auto-rotation
       sphereMesh.rotation.x += 0.002;
@@ -105,13 +124,17 @@ export default function Hero3DCanvas() {
     // Resize Handler
     const handleResize = () => {
       if (!mount) return;
-      camera.aspect = mount.clientWidth / mount.clientHeight;
+      const w = mount.clientWidth;
+      const h = mount.clientHeight;
+      if (w === 0 || h === 0) return;
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(mount.clientWidth, mount.clientHeight);
+      renderer.setSize(w, h);
     };
-    window.addEventListener("resize", handleResize);
+    window.addEventListener("resize", handleResize, { passive: true });
 
     return () => {
+      observer.disconnect();
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("resize", handleResize);
@@ -132,6 +155,7 @@ export default function Hero3DCanvas() {
     <div
       ref={mountRef}
       className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden opacity-85"
+      style={{ contain: "strict" }}
     />
   );
 }

@@ -4,6 +4,10 @@ import VerifyActions from "../VerifyActions";
 import ComplaintMediaGallery from "../ComplaintMediaGallery";
 import Link from "next/link";
 import { getMediaUrl } from "@/lib/media";
+import { StatusBadge, PriorityBadge, MarkAsRead } from "@/app/components/StatusBadge";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 import {
   MapPin,
   Tag,
@@ -90,7 +94,7 @@ export default async function AdminComplaintDetailPage({
       .order("created_at", { ascending: true }),
     supabase
       .from("profiles")
-      .select("id, display_name")
+      .select("id, display_name, department_id")
       .eq("college_id", collegeId)
       .eq("role", "worker"),
     supabase
@@ -172,6 +176,7 @@ export default async function AdminComplaintDetailPage({
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl pb-16">
+      <MarkAsRead complaintId={complaint.id} />
       {/* Top Header Card */}
       <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 pb-3">
@@ -179,16 +184,8 @@ export default async function AdminComplaintDetailPage({
             <span className="font-mono text-sm font-semibold text-neutral-900 bg-neutral-100 px-2.5 py-1 rounded-md border border-neutral-200">
               {complaint.public_id}
             </span>
-            <span
-              className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${statusInfo.bg} ${statusInfo.text}`}
-            >
-              {statusInfo.label}
-            </span>
-            <span
-              className={`rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${priorityInfo.bg} ${priorityInfo.text}`}
-            >
-              {complaint.priority || "Medium"} priority
-            </span>
+            <StatusBadge status={complaint.status} />
+            <PriorityBadge priority={complaint.priority} />
           </div>
 
           <div className="flex items-center gap-4 text-xs">
@@ -279,6 +276,7 @@ export default async function AdminComplaintDetailPage({
             departments={departments ?? []}
             currentWorkerId={complaint.assigned_worker_id}
             currentWorkerName={workerName}
+            currentDepartmentId={complaint.assigned_department_id}
           />
         </div>
       )}

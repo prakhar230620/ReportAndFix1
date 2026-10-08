@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { revalidatePath } from "next/cache";
 
 export type DuplicateCandidate = {
   id: string;
@@ -47,6 +48,53 @@ export async function checkDuplicates(
   return { candidates: (data ?? []) as DuplicateCandidate[] };
 }
 
+async function recalculateComplaintPriority(complaintId: string, voteCount: number) {
+  try {
+    const adminClient = createAdminClient();
+    const { data: comp } = await adminClient
+      .from("complaints")
+      .select("id, college_id, priority, public_id")
+      .eq("id", complaintId)
+      .single();
+
+    if (!comp || !comp.college_id) return;
+
+    // Get total members in this organisation to dynamically scale thresholds
+    const { count: totalMembers } = await adminClient
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("college_id", comp.college_id);
+
+    const orgSize = Math.max(totalMembers ?? 1, 10);
+    const joinRatio = (voteCount / orgSize) * 100;
+
+    let targetPriority: "low" | "medium" | "high" | "urgent" = "low";
+    if (joinRatio >= 20 || voteCount >= 20) {
+      targetPriority = "urgent";
+    } else if (joinRatio >= 10 || voteCount >= 10) {
+      targetPriority = "high";
+    } else if (joinRatio >= 5 || voteCount >= 5) {
+      targetPriority = "medium";
+    }
+
+    if (comp.priority !== targetPriority) {
+      await adminClient
+        .from("complaints")
+        .update({ priority: targetPriority })
+        .eq("id", complaintId);
+
+      revalidatePath("/feed");
+      revalidatePath(`/issues/${comp.public_id}`);
+      revalidatePath("/admin/queue");
+      revalidatePath(`/admin/queue/${comp.public_id}`);
+      revalidatePath("/dept-admin/queue");
+      revalidatePath(`/dept-admin/queue/${comp.public_id}`);
+    }
+  } catch (err) {
+    console.warn("Priority recalculation warning:", err);
+  }
+}
+
 export async function leaveComplaint(complaintId: string) {
   const supabase = await createClient();
   const {
@@ -67,7 +115,10 @@ export async function leaveComplaint(complaintId: string) {
     .select("id", { count: "exact", head: true })
     .eq("complaint_id", complaintId);
 
-  return { voteCount: count ?? null };
+  const finalCount = count ?? 0;
+  await recalculateComplaintPriority(complaintId, finalCount);
+
+  return { voteCount: finalCount };
 }
 
 export async function joinComplaint(complaintId: string) {
@@ -93,7 +144,10 @@ export async function joinComplaint(complaintId: string) {
     .select("id", { count: "exact", head: true })
     .eq("complaint_id", complaintId);
 
-  return { voteCount: count ?? null };
+  const finalCount = count ?? 1;
+  await recalculateComplaintPriority(complaintId, finalCount);
+
+  return { voteCount: finalCount };
 }
 
 export async function createComplaint(params: {
@@ -118,15 +172,18 @@ export async function createComplaint(params: {
     return { error: "This location is not available for reporting." };
   }
 
-  // Check if organisation is frozen
+  // Check if organisation is frozen or expired
   const { data: college } = await supabase
     .from("colleges")
-    .select("is_frozen")
+    .select("is_frozen, subscription_status")
     .eq("id", location.college_id)
     .single();
 
-  if (college?.is_frozen) {
-    return { error: "There was some technical issue. Please connect to your Organisational Admin or Departmental Admin." };
+  if (
+    college?.is_frozen ||
+    ["expired", "frozen", "suspended", "cancelled"].includes(college?.subscription_status ?? "")
+  ) {
+    return { error: "Reporting is currently paused for this organisation due to inactive subscription. Please connect to your Organisational Admin." };
   }
 
   if (!params.title.trim()) return { error: "Title is required." };

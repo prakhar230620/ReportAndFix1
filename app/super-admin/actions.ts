@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 
 const DEFAULT_CATEGORIES = [
@@ -71,7 +72,7 @@ export async function createCollege(formData: FormData) {
     const allow_worker_signup = formData.get("allow_worker_signup") === "true";
     const allow_admin_signup = formData.get("allow_admin_signup") === "true";
 
-    if (!name) return { error: "Organization name is required" };
+    const camera_mode = String(formData.get("camera_mode") ?? "both");
 
     const { data: college, error } = await supabase
       .from("colleges")
@@ -83,6 +84,7 @@ export async function createCollege(formData: FormData) {
         contact_phone,
         allow_worker_signup,
         allow_admin_signup,
+        camera_mode,
         subscription_status: "active",
       })
       .select("id")
@@ -112,7 +114,7 @@ export async function updateCollege(collegeId: string, formData: FormData) {
     const allow_worker_signup = formData.get("allow_worker_signup") === "true";
     const allow_admin_signup = formData.get("allow_admin_signup") === "true";
 
-    if (!name) return { error: "Organization name is required" };
+    const camera_mode = String(formData.get("camera_mode") ?? "both");
 
     const { error } = await supabase
       .from("colleges")
@@ -124,6 +126,7 @@ export async function updateCollege(collegeId: string, formData: FormData) {
         contact_phone,
         allow_worker_signup,
         allow_admin_signup,
+        camera_mode,
       })
       .eq("id", collegeId);
 
@@ -241,3 +244,186 @@ export async function purgeExpiredColleges() {
     return { ok: false };
   }
 }
+
+export async function manageOrgSubscriptionManual(formData: FormData) {
+  try {
+    const supabase = await getSuperAdminClient();
+    const adminClient = createAdminClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const collegeId = String(formData.get("college_id") ?? "");
+    const actionType = String(formData.get("action_type") ?? "assign");
+    const planId = String(formData.get("plan_id") ?? "");
+    const billingCycle = (formData.get("billing_cycle") as "monthly" | "yearly") || "monthly";
+    const paymentMethod = String(formData.get("payment_method") ?? "");
+    const transactionReference = String(formData.get("transaction_reference") ?? "").trim();
+    const payerName = String(formData.get("payer_name") ?? "").trim();
+    const payerDesignation = String(formData.get("payer_designation") ?? "").trim();
+    const file = formData.get("file");
+
+    if (!collegeId) return { error: "Organization ID is required." };
+
+    if (actionType === "suspend") {
+      await adminClient.from("org_subscriptions").update({ status: "frozen" }).eq("college_id", collegeId);
+      await adminClient.from("colleges").update({ is_frozen: true, frozen_reason: "Suspended by Super Admin" }).eq("id", collegeId);
+      revalidatePath("/super-admin");
+      revalidatePath("/super-admin/analytics");
+      return { ok: true };
+    }
+
+    if (actionType === "continue") {
+      await adminClient.from("org_subscriptions").update({ status: "active" }).eq("college_id", collegeId);
+      await adminClient.from("colleges").update({ is_frozen: false, frozen_reason: null }).eq("id", collegeId);
+      revalidatePath("/super-admin");
+      revalidatePath("/super-admin/analytics");
+      return { ok: true };
+    }
+
+    if (actionType === "cancel") {
+      await adminClient.from("org_subscriptions").update({ status: "cancelled" }).eq("college_id", collegeId);
+      revalidatePath("/super-admin");
+      revalidatePath("/super-admin/analytics");
+      return { ok: true };
+    }
+
+    // Action is "assign"
+    if (!planId) return { error: "Please select a plan to assign." };
+    if (!["upi", "netbanking", "card"].includes(paymentMethod)) {
+      return {
+        error: "Invalid payment mode. Only online payments (UPI, NetBanking, Cards/RuPay) are accepted. Cash payments are strictly prohibited.",
+      };
+    }
+    if (!transactionReference) {
+      return { error: "Unique Transaction Reference (UTR / Txn ID) is required." };
+    }
+    if (!payerName) {
+      return { error: "Payer name is required." };
+    }
+
+    if (!(file instanceof File) || file.size === 0) {
+      return { error: "Payment proof document (Receipt Image or Statement PDF) is required." };
+    }
+
+    // Read and verify file
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // AI-Generated Image & Fraud Detection
+    if (file.type.startsWith("image/")) {
+      const { detectAiGeneratedImage } = await import("@/lib/aiDetection");
+      const aiCheck = await detectAiGeneratedImage(buffer, file.name, file.type);
+      if (aiCheck.isAiGenerated) {
+        return {
+          error: `AI Fraud Alert: Image detected as AI-generated/synthetic (${aiCheck.reason}). Please provide an authentic official bank statement or payment receipt.`,
+        };
+      }
+    }
+
+    // Upload proof file
+    let proofUrl = "";
+    const storagePath = `proofs/${collegeId}/${Date.now()}_${file.name}`;
+    try {
+      const { uploadToB2 } = await import("@/lib/b2");
+      await uploadToB2(storagePath, buffer, file.type);
+      proofUrl = `/api/media?path=${encodeURIComponent(storagePath)}`;
+    } catch {
+      const { data: uploadData } = await adminClient.storage
+        .from("complaint-media")
+        .upload(storagePath, buffer, { contentType: file.type });
+      proofUrl = uploadData ? `/api/media?path=${encodeURIComponent(storagePath)}` : storagePath;
+    }
+
+    // Fetch plan details
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(planId);
+    const planQuery = isUuid
+      ? adminClient.from("plans").select("*").eq("id", planId)
+      : adminClient.from("plans").select("*").eq("slug", planId);
+    const { data: plan } = await planQuery.single();
+    if (!plan) return { error: "Selected plan does not exist." };
+    const actualPlanId = plan.id;
+
+    const amountPaise = billingCycle === "yearly" ? plan.price_yearly_paise : plan.price_monthly_paise;
+    const daysToAdd = billingCycle === "yearly" ? 365 : 30;
+    const periodEnd = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
+
+    // Upsert subscription
+    const { data: existingSub } = await adminClient
+      .from("org_subscriptions")
+      .select("id")
+      .eq("college_id", collegeId)
+      .maybeSingle();
+
+    let subId = existingSub?.id;
+    if (existingSub) {
+      await adminClient
+        .from("org_subscriptions")
+        .update({
+          plan_id: actualPlanId,
+          status: "manually_assigned",
+          billing_cycle: billingCycle,
+          current_period_start: new Date().toISOString(),
+          current_period_end: periodEnd,
+          assigned_by: user!.id,
+          notes: `Assigned manually by Super Admin. Txn Ref: ${transactionReference}`,
+        })
+        .eq("id", existingSub.id);
+    } else {
+      const { data: newSub } = await adminClient
+        .from("org_subscriptions")
+        .insert({
+          college_id: collegeId,
+          plan_id: actualPlanId,
+          status: "manually_assigned",
+          billing_cycle: billingCycle,
+          current_period_start: new Date().toISOString(),
+          current_period_end: periodEnd,
+          assigned_by: user!.id,
+          notes: `Assigned manually by Super Admin. Txn Ref: ${transactionReference}`,
+        })
+        .select("id")
+        .single();
+      subId = newSub?.id;
+    }
+
+    // Unfreeze college and update status
+    await adminClient
+      .from("colleges")
+      .update({
+        is_frozen: false,
+        frozen_reason: null,
+        subscription_status: "active",
+        subscription_plan: plan.slug,
+      })
+      .eq("id", collegeId);
+
+    // Record payment transaction
+    await adminClient.from("payment_transactions").insert({
+      college_id: collegeId,
+      subscription_id: subId,
+      amount_paise: amountPaise,
+      currency: "INR",
+      status: "paid",
+      payment_method: paymentMethod as any,
+      description: `Manual Plan Assignment (${plan.name} ${billingCycle})`,
+      invoice_number: `INV-MAN-${Date.now().toString().slice(-6)}`,
+      metadata: {
+        transaction_reference: transactionReference,
+        payer_name: payerName,
+        payer_designation: payerDesignation || "Organisation Admin",
+        proof_url: proofUrl,
+        assigned_by: user!.id,
+        ai_verified: true,
+      },
+    });
+
+    revalidatePath("/super-admin");
+    revalidatePath("/super-admin/analytics");
+    revalidatePath("/admin/billing");
+    return { ok: true };
+  } catch (err: any) {
+    return { error: err?.message ?? "Failed to assign plan." };
+  }
+}
+

@@ -5,7 +5,7 @@ import { assignComplaint, unassignComplaint } from "./actions";
 import { Building2, User, ArrowRight, UserCheck } from "lucide-react";
 import { ButtonSpinner } from "@/app/components/Spinner";
 
-type Worker = { id: string; display_name: string | null };
+type Worker = { id: string; display_name: string | null; department_id?: string | null };
 type Department = { id: string; name: string };
 
 export default function AssignForm({
@@ -23,7 +23,7 @@ export default function AssignForm({
   currentWorkerName?: string | null;
   currentDepartmentId?: string | null;
 }) {
-  const [departmentId, setDepartmentId] = useState(currentDepartmentId || (departments[0]?.id ?? ""));
+  const [departmentId, setDepartmentId] = useState(currentDepartmentId || "");
   const [workerId, setWorkerId] = useState(currentWorkerId || "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -115,7 +115,16 @@ export default function AssignForm({
           </span>
           <select
             value={workerId}
-            onChange={(e) => setWorkerId(e.target.value)}
+            onChange={(e) => {
+              const selectedId = e.target.value;
+              setWorkerId(selectedId);
+              if (selectedId) {
+                const w = workers.find((x) => x.id === selectedId);
+                if (w?.department_id) {
+                  setDepartmentId(w.department_id);
+                }
+              }
+            }}
             className="rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-900 focus:border-neutral-900 focus:outline-none"
           >
             <option value="">Let Departmental Admin assign worker</option>

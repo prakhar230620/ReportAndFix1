@@ -16,7 +16,7 @@ export default async function WorkerLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, college_id, colleges(name, logo_url, is_frozen, contact_email)")
+    .select("role, college_id, colleges(name, logo_url, is_frozen, contact_email, subscription_status)")
     .eq("id", user.id)
     .single();
 
@@ -25,7 +25,9 @@ export default async function WorkerLayout({
   }
 
   const collegeData = profile.colleges as any;
-  const isFrozen = collegeData?.is_frozen === true;
+  const isFrozen =
+    collegeData?.is_frozen === true ||
+    ["expired", "frozen", "suspended", "cancelled"].includes(collegeData?.subscription_status ?? "");
   if (isFrozen) {
     // Fetch admins of this org for contact reference
     const { data: admins } = await supabase

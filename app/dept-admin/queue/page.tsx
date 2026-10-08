@@ -3,6 +3,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Building2, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { StatusBadge, PriorityBadge, UnreadDot } from "@/app/components/StatusBadge";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function DeptAdminQueuePage({
   searchParams,
@@ -256,7 +260,10 @@ export default async function DeptAdminQueuePage({
               className="rounded-xl border border-neutral-200 bg-white p-4 text-sm shadow-sm hover:border-neutral-300 hover:bg-neutral-50 transition-colors"
             >
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-neutral-900">{c.title}</span>
+                <div className="flex items-center gap-2">
+                  <UnreadDot complaintId={c.id} createdAt={c.created_at} />
+                  <span className="font-semibold text-neutral-900">{c.title}</span>
+                </div>
                 <span className="font-mono text-xs font-medium text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded">
                   {c.public_id}
                 </span>
@@ -270,23 +277,19 @@ export default async function DeptAdminQueuePage({
                 {/* Status Badge */}
                 {c.status === "waiting_for_verification" ? (
                   isDeptVerified ? (
-                    <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 font-medium text-emerald-800">
+                    <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 font-medium text-emerald-800 border border-emerald-200">
                       Dept Verified ✓ (Awaiting Org Admin)
                     </span>
                   ) : (
-                    <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 font-semibold text-indigo-800">
+                    <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 font-semibold text-indigo-800 border border-indigo-200">
                       Tier 1 Verification Needed
                     </span>
                   )
                 ) : (
-                  <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 font-medium capitalize text-neutral-700">
-                    {c.status}
-                  </span>
+                  <StatusBadge status={c.status} />
                 )}
 
-                <span className="rounded-full bg-neutral-100 px-2 py-0.5 capitalize text-neutral-600">
-                  {c.priority} priority
-                </span>
+                <PriorityBadge priority={c.priority} />
 
                 {/* Worker Assignment Status */}
                 {workerName ? (

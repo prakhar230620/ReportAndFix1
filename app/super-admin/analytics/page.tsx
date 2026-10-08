@@ -12,11 +12,20 @@ export const fetchCache = "force-no-store";
 export default async function SuperAdminAnalyticsPage() {
   const supabase = await createClient();
 
-  const [{ data: colleges, error: collegesError }, { data: storageRaw, error: storageError }] =
-    await Promise.all([
-      supabase.from("colleges").select("id, name, subscription_status, category, logo_url").order("name"),
-      supabase.rpc("get_storage_usage" as never),
-    ]);
+  const [
+    { data: colleges, error: collegesError },
+    { data: storageRaw, error: storageError },
+    { data: subscriptionsData },
+    { data: allPlansData },
+  ] = await Promise.all([
+    supabase
+      .from("colleges")
+      .select("id, name, subscription_status, subscription_plan, category, logo_url")
+      .order("name"),
+    supabase.rpc("get_storage_usage" as never),
+    supabase.from("org_subscriptions").select("*, plan:plans(*)"),
+    supabase.from("plans").select("*"),
+  ]);
 
   if (collegesError) {
     return (
@@ -29,6 +38,9 @@ export default async function SuperAdminAnalyticsPage() {
   const activeColleges = (colleges ?? []).filter(
     (c) => !c.subscription_status?.startsWith("pending_deletion")
   );
+
+  const plansBySlug = new Map((allPlansData ?? []).map((p: any) => [p.slug, p]));
+  const subsByCollege = new Map((subscriptionsData ?? []).map((s: any) => [s.college_id, s]));
 
   const storage = (storageRaw ?? {
     db_size_bytes: 0,
@@ -49,6 +61,9 @@ export default async function SuperAdminAnalyticsPage() {
   // Fetch detailed live metrics for each organisation in parallel
   const orgDetails = await Promise.all(
     activeColleges.map(async (c) => {
+      const sub = subsByCollege.get(c.id);
+      const plan = sub?.plan || plansBySlug.get(c.subscription_plan ?? "") || plansBySlug.get("starter");
+
       const [
         { data: collegeAnalytics },
         { data: complaintsList },
@@ -57,7 +72,7 @@ export default async function SuperAdminAnalyticsPage() {
         { count: categoriesCount },
       ] = await Promise.all([
         supabase.rpc("get_college_analytics" as never, { p_college_id: c.id } as never),
-        supabase.from("complaints").select("id, status, resolution_seconds").eq("college_id", c.id),
+        supabase.from("complaints").select("id, status, resolution_seconds, created_at").eq("college_id", c.id),
         supabase.from("profiles").select("id, role").eq("college_id", c.id),
         supabase.from("locations").select("id", { count: "exact", head: true }).eq("college_id", c.id),
         supabase.from("categories").select("id", { count: "exact", head: true }).eq("college_id", c.id),
@@ -108,11 +123,41 @@ export default async function SuperAdminAnalyticsPage() {
         { table: "Media Files", icon: "🖼️", records: mediaCount, isFile: true },
       ];
 
+      // Plan & Quota limits
+      const planName = plan?.name ?? "Starter";
+      const planSlug = plan?.slug ?? "starter";
+      const planMaxStorageGb = plan?.max_storage_gb ?? 2;
+      const planMaxComplaints = plan?.max_complaints_per_month ?? 100;
+      const planMaxWorkers = plan?.max_workers ?? 10;
+      const planPriceMonthly = plan?.price_monthly_paise ?? 49900;
+      const planMessagingEnabled = plan?.messaging_enabled ?? false;
+      const planDataDownloadFree = plan?.data_download_free ?? false;
+
+      // Usage metrics
+      const storageUsedGb = storageItem.bytes / (1024 * 1024 * 1024);
+      const storageUsagePct = planMaxStorageGb > 0 ? Math.round((storageUsedGb / planMaxStorageGb) * 100) : 0;
+      const complaintsMonthlyCount = complaints.length;
+      const complaintsUsagePct = planMaxComplaints > 0 ? Math.round((complaintsMonthlyCount / planMaxComplaints) * 100) : 0;
+      const workersUsagePct = planMaxWorkers > 0 ? Math.round((workersCount / planMaxWorkers) * 100) : 0;
+
       return {
         id: c.id,
         name: c.name,
         category: c.category ?? "college",
-        status: c.subscription_status ?? "active",
+        status: sub?.status ?? c.subscription_status ?? "active",
+        subscription_plan: planSlug,
+        plan_name: planName,
+        plan_price_monthly_paise: planPriceMonthly,
+        plan_max_storage_gb: planMaxStorageGb,
+        plan_max_complaints_per_month: planMaxComplaints,
+        plan_max_workers: planMaxWorkers,
+        plan_messaging_enabled: planMessagingEnabled,
+        plan_data_download_free: planDataDownloadFree,
+        current_period_end: sub?.current_period_end ?? null,
+        complaints_monthly_count: complaintsMonthlyCount,
+        complaints_usage_pct: complaintsUsagePct,
+        storage_usage_pct: storageUsagePct,
+        workers_usage_pct: workersUsagePct,
         logo_url: c.logo_url,
         file_bytes: storageItem.bytes,
         file_count: storageItem.object_count,

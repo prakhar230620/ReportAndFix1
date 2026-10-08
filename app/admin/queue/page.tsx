@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 import Link from "next/link";
+import { StatusBadge, PriorityBadge, UnreadDot } from "@/app/components/StatusBadge";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function AdminQueuePage({
   searchParams,
@@ -138,17 +142,20 @@ export default async function AdminQueuePage({
             className="rounded-md border border-neutral-200 p-3 text-sm hover:bg-neutral-50"
           >
             <div className="flex items-center justify-between">
-              <span className="font-medium">{c.title}</span>
-              <span className="text-xs text-neutral-500">{c.public_id}</span>
+              <div className="flex items-center gap-2">
+                <UnreadDot complaintId={c.id} createdAt={c.created_at} />
+                <span className="font-medium text-neutral-900">{c.title}</span>
+              </div>
+              <span className="font-mono text-xs text-neutral-500">{c.public_id}</span>
             </div>
             <div className="mt-1 text-neutral-500">
               {c.category_name} · {c.location_name}
             </div>
-            <div className="mt-1 flex items-center gap-2 text-xs text-neutral-500">
-              <span className="rounded-full bg-neutral-200 px-2 py-0.5">{c.status}</span>
-              <span className="rounded-full bg-neutral-200 px-2 py-0.5">{c.priority}</span>
-              <span>{c.vote_count} joined</span>
-              {c.assigned_worker_name && <span>· {c.assigned_worker_name}</span>}
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              <StatusBadge status={c.status} />
+              <PriorityBadge priority={c.priority} />
+              <span className="text-neutral-500 font-medium">{c.vote_count} joined</span>
+              {c.assigned_worker_name && <span className="text-neutral-500">· {c.assigned_worker_name}</span>}
             </div>
           </Link>
         ))}

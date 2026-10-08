@@ -35,13 +35,47 @@ export async function assignComplaint(
     return { error: "Unauthorized" };
   }
 
+  if (profile.college_id && profile.role !== "super_admin") {
+    const { data: col } = await adminClient
+      .from("colleges")
+      .select("is_frozen, subscription_status")
+      .eq("id", profile.college_id)
+      .single();
+    if (
+      col?.is_frozen ||
+      ["expired", "frozen", "suspended", "cancelled"].includes(col?.subscription_status ?? "")
+    ) {
+      return { error: "Organization subscription is expired or suspended. Operations are locked." };
+    }
+  }
+
+  // Fetch the current status of the complaint so we log an accurate transition
+  const { data: currentComplaint } = await adminClient
+    .from("complaints")
+    .select("status")
+    .eq("id", complaintId)
+    .single();
+
+  const previousStatus = currentComplaint?.status ?? "submitted";
   const newStatus = workerId ? "processing" : "assigned";
+
+  let resolvedDeptId = departmentId || null;
+  if (workerId && !resolvedDeptId) {
+    const { data: workerProfile } = await adminClient
+      .from("profiles")
+      .select("department_id")
+      .eq("id", workerId)
+      .single();
+    if (workerProfile?.department_id) {
+      resolvedDeptId = workerProfile.department_id;
+    }
+  }
 
   const { error } = await adminClient
     .from("complaints")
     .update({
       assigned_worker_id: workerId || null,
-      assigned_department_id: departmentId || null,
+      assigned_department_id: resolvedDeptId,
       assigned_by: user.id,
       assigned_at: new Date().toISOString(),
       status: newStatus,
@@ -52,7 +86,7 @@ export async function assignComplaint(
 
   await adminClient.from("complaint_status_history").insert({
     complaint_id: complaintId,
-    previous_status: "submitted",
+    previous_status: previousStatus,
     new_status: newStatus,
     actor_id: user.id,
     note: workerId
@@ -66,7 +100,7 @@ export async function assignComplaint(
     action: "assigned",
     entity_type: "complaint",
     entity_id: complaintId,
-    metadata: { worker_id: workerId || null, department_id: departmentId || null },
+    metadata: { worker_id: workerId || null, department_id: resolvedDeptId },
   });
 
   revalidatePath("/admin/queue");

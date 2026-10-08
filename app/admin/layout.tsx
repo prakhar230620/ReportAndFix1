@@ -16,7 +16,7 @@ export default async function AdminLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, college_id, colleges(logo_url, is_frozen)")
+    .select("role, college_id, colleges(logo_url, is_frozen, subscription_status)")
     .eq("id", user.id)
     .single();
 
@@ -24,8 +24,11 @@ export default async function AdminLayout({
     redirect("/");
   }
 
-  // Check if org is frozen — show block page instead of content
-  const isFrozen = (profile.colleges as any)?.is_frozen === true;
+  // Check if org is frozen or subscription inactive — show block page instead of content
+  const collegeData = profile.colleges as any;
+  const isFrozen =
+    collegeData?.is_frozen === true ||
+    ["expired", "frozen", "suspended", "cancelled"].includes(collegeData?.subscription_status ?? "");
 
   let roleRequestCount = 0;
   if (profile.role === "college_admin" && profile.college_id) {

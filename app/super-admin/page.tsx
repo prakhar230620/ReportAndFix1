@@ -50,6 +50,8 @@ export default async function SuperAdminPage() {
       name: col.name,
       category: col.category,
       subscription_status: col.subscription_status ?? "active",
+      subscription_plan: col.subscription_plan ?? null,
+      camera_mode: col.camera_mode ?? "both",
       logo_url: col.logo_url,
       address: col.address,
       contact_email: col.contact_email,
