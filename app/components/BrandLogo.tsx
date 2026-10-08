@@ -1,7 +1,9 @@
-import React from "react";
+"use client";
+
 import Link from "next/link";
 
 export default function BrandLogo({
+
   size = "md",
   withText = true,
   showWordmark,
