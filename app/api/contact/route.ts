@@ -32,12 +32,18 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Alert Super Admin via SMTP
-    const adminAlertEmail = process.env.SMTP_FROM || process.env.SMTP_USER || "admin@reportandfix.com";
-    await sendMail({
-      to: adminAlertEmail,
-      subject: `[ReportAndFix Inquiry] ${subject || "New Message"} from ${name}`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; rounded: 8px;">
+    const adminAlertEmail =
+      process.env.ADMIN_ALERT_EMAIL ||
+      process.env.SMTP_USER ||
+      process.env.SMTP_USERNAME ||
+      process.env.SMTP_FROM;
+
+    if (adminAlertEmail && !adminAlertEmail.includes("@reportandfix.com")) {
+      await sendMail({
+        to: adminAlertEmail,
+        subject: `[ReportAndFix Inquiry] ${subject || "New Message"} from ${name}`,
+        html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
           <h2 style="color: #1e3a8a; margin-top: 0;">New Contact Form Submission</h2>
           <p><strong>Sender:</strong> ${name} &lt;${email}&gt;</p>
           <p><strong>Subject:</strong> ${subject || "General Inquiry"}</p>
@@ -50,7 +56,8 @@ export async function POST(req: NextRequest) {
           </p>
         </div>
       `,
-    });
+      });
+    }
 
     // 3. Send automated confirmation to user
     await sendMail({

@@ -10,7 +10,10 @@ const smtpUser = process.env.SMTP_USER || process.env.SMTP_USERNAME || "";
 const smtpPass = process.env.SMTP_PASS || process.env.SMTP_PASSWORD || "";
 const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
 const smtpPort = Number(process.env.SMTP_PORT || 587);
-const smtpFrom = process.env.SMTP_FROM || smtpUser || "notifications@reportandfix.com";
+const smtpFrom =
+  process.env.SMTP_FROM && !process.env.SMTP_FROM.includes("@reportandfix.com")
+    ? process.env.SMTP_FROM
+    : smtpUser || "prakharbankhede15@gmail.com";
 
 let transporter: any = null;
 if (smtpUser && smtpPass) {
