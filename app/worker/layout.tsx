@@ -97,7 +97,7 @@ export default async function WorkerLayout({
         logoUrl={(profile.colleges as any)?.logo_url}
         notify={{ role: "worker", userId: user.id, collegeId: profile.college_id }}
         items={[
-          { href: "/worker", label: "Home" },
+          { href: "/", label: "Home" },
           { href: "/worker", label: "Tasks" },
           { href: "/worker/messages", label: "Messages" },
         ]}

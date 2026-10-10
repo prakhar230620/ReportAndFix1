@@ -40,14 +40,16 @@ export default function NavBar({
               3. Org Screens without logoUrl -> Neutral Building2 icon (NEVER platform logo)
           */}
           {isSuperAdmin || showBrandLogo ? (
-            <BrandLogo size="sm" showWordmark={false} />
+            <BrandLogo size="sm" showWordmark={false} href="/" />
           ) : logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt="" className="h-7 w-7 rounded-lg border border-neutral-200 object-contain p-0.5" />
+            <Link href="/" title="Home">
+              <img src={logoUrl} alt="" className="h-7 w-7 rounded-lg border border-neutral-200 object-contain p-0.5 hover:opacity-80 transition" />
+            </Link>
           ) : (
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-100 text-neutral-500">
+            <Link href="/" title="Home" className="flex h-7 w-7 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-100 text-neutral-500 hover:bg-neutral-200 transition">
               <Building2 className="h-4 w-4" />
-            </div>
+            </Link>
           )}
 
           <span className="font-semibold text-neutral-900">{brand}</span>
@@ -62,8 +64,10 @@ export default function NavBar({
         </div>
         <div className="flex flex-wrap gap-1.5">
           {items.map((item) => {
-            const active =
-              item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            const isRootRoute = ["/", "/admin", "/dept-admin", "/worker", "/super-admin"].includes(item.href);
+            const active = isRootRoute
+              ? pathname === item.href
+              : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}
