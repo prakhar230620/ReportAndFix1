@@ -62,7 +62,7 @@ export default function PlanUpgradeModal({
       }
 
       const rzp = new window.Razorpay({
-        key: data.key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_TlKKTyUyGtUGmw",
+        key: data.key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_Tm65zzEiuQQbEC",
         order_id: data.orderId,
         amount: data.amount || amount,
         currency: "INR",
