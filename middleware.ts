@@ -83,6 +83,14 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Prevent browser caching across multiple role logins on the same browser
+  response.headers.set(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+  );
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Expires", "0");
+
   return response;
 }
 

@@ -3,6 +3,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import NavBar from "@/app/components/NavBar";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
 export default async function SuperAdminLayout({
   children,
 }: {
@@ -46,6 +50,7 @@ export default async function SuperAdminLayout({
         showBrandLogo={true}
         notify={{ role: "super_admin" }}
         items={[
+          { href: "/", label: "Home" },
           { href: "/super-admin", label: "Overview" },
           { href: "/super-admin/plans", label: "Plans Studio" },
           { href: "/super-admin/transactions", label: "Transactions" },

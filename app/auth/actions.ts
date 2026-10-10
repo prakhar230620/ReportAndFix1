@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
 
 const VALID_SIGNUP_ROLES = new Set(["user", "worker", "college_admin"]);
 
@@ -108,21 +109,43 @@ export async function signInWithGoogle(formData: FormData) {
 export async function login(formData: FormData) {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "") || "/";
+  let next = String(formData.get("next") ?? "") || "/";
 
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password });
 
-  if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
+  if (error || !authData?.user) {
+    redirect(`/login?error=${encodeURIComponent(error?.message ?? "Login failed")}&next=${encodeURIComponent(next)}`);
   }
 
+  // Fetch the role of the user logging in to prevent redirecting to another role's dashboard
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", authData.user.id)
+    .single();
+
+  const role = profile?.role;
+
+  // Prevent routing to another role's panel left behind in the query string from previous session
+  if (next.startsWith("/super-admin") && role !== "super_admin") {
+    next = "/";
+  } else if (next.startsWith("/admin") && role !== "college_admin" && role !== "super_admin") {
+    next = "/";
+  } else if (next.startsWith("/dept-admin") && role !== "dept_admin" && role !== "college_admin" && role !== "super_admin") {
+    next = "/";
+  } else if (next.startsWith("/worker") && role !== "worker" && role !== "college_admin" && role !== "super_admin") {
+    next = "/";
+  }
+
+  revalidatePath("/", "layout");
   redirect(next);
 }
 
 export async function logout() {
   const supabase = await createClient();
   await supabase.auth.signOut();
+  revalidatePath("/", "layout");
   redirect("/login");
 }
