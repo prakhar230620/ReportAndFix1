@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { X, Plus, Save } from "lucide-react";
 import { ButtonSpinner } from "@/app/components/Spinner";
 import { savePlan, deletePlan } from "@/app/super-admin/plans/actions";
@@ -34,6 +35,7 @@ const defaultPlan: Plan = {
 };
 
 export default function PlanEditor({ mode, plan }: { mode: "create" | "edit"; plan?: Plan }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Plan>(plan ?? defaultPlan);
   const [newFeature, setNewFeature] = useState("");
@@ -51,7 +53,7 @@ export default function PlanEditor({ mode, plan }: { mode: "create" | "edit"; pl
     setLoading(false);
     if (res.error) { setError(res.error); return; }
     setOpen(false);
-    window.location.reload();
+    router.refresh();
   }
 
   return (
@@ -151,7 +153,7 @@ export default function PlanEditor({ mode, plan }: { mode: "create" | "edit"; pl
 
               <div className="flex items-center justify-between pt-2 border-t">
                 {mode === "edit" && plan?.id && (
-                  <button type="button" onClick={async()=>{if(confirm("Delete this plan?")){await deletePlan(plan.id!);window.location.reload();}}}
+                  <button type="button" onClick={async()=>{if(confirm("Delete this plan?")){await deletePlan(plan.id!);setOpen(false);router.refresh();}}}
                     className="text-xs text-red-600 hover:text-red-700 font-medium">Delete Plan</button>
                 )}
                 <button type="submit" disabled={loading}

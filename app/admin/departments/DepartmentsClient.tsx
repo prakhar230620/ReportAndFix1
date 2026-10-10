@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   Plus, Pencil, Ban, CheckCircle2, Trash2, UserMinus,
   ShieldCheck, ShieldOff, ArrowUpCircle, ArrowDownCircle,
@@ -40,13 +41,20 @@ export default function DepartmentsClient({
   formerWorkers: FormerWorker[];
   availableUsers: AvailableUser[];
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [newName, setNewName] = useState("");
+  const [feedback, setFeedback] = useState<{ type: "error" | "success"; message: string } | null>(null);
 
   function run(fn: () => Promise<{ error?: string }>) {
+    setFeedback(null);
     startTransition(async () => {
       const res = await fn();
-      if (res.error) alert(res.error);
+      if (res.error) {
+        setFeedback({ type: "error", message: res.error });
+      } else {
+        router.refresh();
+      }
     });
   }
 
@@ -56,6 +64,14 @@ export default function DepartmentsClient({
 
   return (
     <div className="flex flex-col gap-8">
+      {feedback && (
+        <div className={`rounded-xl px-4 py-3 text-sm flex items-center justify-between border shadow-xs transition-all ${
+          feedback.type === "error" ? "bg-red-50 text-red-700 border-red-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+        }`}>
+          <span className="font-medium">{feedback.message}</span>
+          <button onClick={() => setFeedback(null)} className="text-xs font-bold ml-3 px-1.5 py-0.5 rounded hover:bg-black/5">✕</button>
+        </div>
+      )}
       <div>
         <h1 className="text-xl font-semibold">Departments & Roles</h1>
         <p className="text-sm text-neutral-500">
@@ -305,17 +321,23 @@ function DepartmentCard({ dept, workers, deptAdmins, allWorkers, allDepartments,
           )}
 
           {!dept.suspended && (
-            <div className="mt-1 flex gap-2">
-              <select value={addWorkerId} onChange={(e) => setAddWorkerId(e.target.value)} className="flex-1 rounded-md border border-neutral-300 px-2 py-1 text-xs">
-                <option value="">Add worker to this dept (multi-dept allowed)...</option>
-                {allWorkers.filter((w) => w.department_id !== dept.id).map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.display_name ?? w.id} {w.department_id ? "(also in other dept)" : "(unassigned)"}
-                  </option>
-                ))}
-              </select>
-              <button disabled={pending || !addWorkerId} onClick={() => { const id = addWorkerId; setAddWorkerId(""); run(() => setWorkerDepartment(id, dept.id)); }} className="rounded-md bg-neutral-900 px-3 py-1 text-xs text-white disabled:opacity-40">Add</button>
-            </div>
+            deptAdmins.length === 0 ? (
+              <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs text-amber-800 flex items-center gap-2">
+                <span>⚠️ <strong>Admin Required:</strong> A Departmental Admin must be assigned to this department before workers can be added.</span>
+              </div>
+            ) : (
+              <div className="mt-1 flex gap-2">
+                <select value={addWorkerId} onChange={(e) => setAddWorkerId(e.target.value)} className="flex-1 rounded-md border border-neutral-300 px-2 py-1 text-xs">
+                  <option value="">Add worker to this dept (multi-dept allowed)...</option>
+                  {allWorkers.filter((w) => w.department_id !== dept.id).map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.display_name ?? w.id} {w.department_id ? "(also in other dept)" : "(unassigned)"}
+                    </option>
+                  ))}
+                </select>
+                <button disabled={pending || !addWorkerId} onClick={() => { const id = addWorkerId; setAddWorkerId(""); run(() => setWorkerDepartment(id, dept.id)); }} className="rounded-md bg-neutral-900 px-3 py-1 text-xs text-white disabled:opacity-40">Add</button>
+              </div>
+            )
           )}
         </div>
       )}

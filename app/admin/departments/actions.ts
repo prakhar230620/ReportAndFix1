@@ -68,15 +68,55 @@ export async function setDepartmentSuspended(id: string, suspended: boolean) {
 
 export async function deleteDepartment(id: string) {
   const supabase = await createClient();
-  const { count } = await supabase
+  const adminClient = createAdminClient();
+
+  // 1. Department cannot be deleted until all related complaints are closed or unassigned
+  const { count: unclosedCount } = await adminClient
+    .from("complaints")
+    .select("id", { count: "exact", head: true })
+    .eq("department_id", id)
+    .neq("status", "closed");
+
+  if ((unclosedCount ?? 0) > 0) {
+    return {
+      error: `Cannot delete department: There are ${unclosedCount} open/active complaint(s) in this department. All complaints must be closed or reassigned first.`,
+    };
+  }
+
+  // 2. Department cannot be deleted until all workers are unassigned or moved
+  const { count: workerCount } = await adminClient
     .from("profiles")
     .select("id", { count: "exact", head: true })
-    .eq("department_id", id);
-  if ((count ?? 0) > 0) {
-    return { error: "Move or remove its workers before deleting this department." };
+    .eq("department_id", id)
+    .eq("role", "worker");
+
+  if ((workerCount ?? 0) > 0) {
+    return {
+      error: `Cannot delete department: There are ${workerCount} worker(s) still assigned to this department. Please unassign or move all workers first.`,
+    };
   }
+
+  // 3. Find any departmental admin(s) currently assigned to this department
+  const { data: deptAdmins } = await adminClient
+    .from("profiles")
+    .select("id")
+    .eq("department_id", id)
+    .eq("role", "dept_admin");
+
+  // 4. Delete the department from the database
   const { error } = await supabase.from("departments").delete().eq("id", id);
   if (error) return { error: error.message };
+
+  // 5. Automatically convert the departmental admin into a worker with no department
+  if (deptAdmins && deptAdmins.length > 0) {
+    for (const da of deptAdmins) {
+      await adminClient
+        .from("profiles")
+        .update({ role: "worker", department_id: null })
+        .eq("id", da.id);
+    }
+  }
+
   revalidatePath("/admin/departments");
   return { ok: true };
 }
@@ -88,6 +128,21 @@ export async function setWorkerDepartment(workerId: string, departmentId: string
     return { error: "Not authorised" };
   }
   const adminClient = createAdminClient();
+
+  // Worker can ONLY be assigned if the department has a departmental admin
+  if (departmentId) {
+    const { count: deptAdminCount } = await adminClient
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("department_id", departmentId)
+      .eq("role", "dept_admin");
+
+    if (!deptAdminCount || deptAdminCount === 0) {
+      return {
+        error: "Cannot assign worker: this department has no Departmental Admin assigned yet. Please assign a Departmental Admin first.",
+      };
+    }
+  }
 
   // Update profiles.department_id (primary dept for display/routing)
   const { error } = await adminClient
@@ -122,6 +177,22 @@ export async function assignUserAsWorker(userId: string, departmentId: string) {
     return { error: "Not authorised" };
   }
   const adminClient = createAdminClient();
+
+  // Worker can ONLY be assigned if the department has a departmental admin
+  if (departmentId) {
+    const { count: deptAdminCount } = await adminClient
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("department_id", departmentId)
+      .eq("role", "dept_admin");
+
+    if (!deptAdminCount || deptAdminCount === 0) {
+      return {
+        error: "Cannot assign worker: this department has no Departmental Admin assigned yet. Please assign a Departmental Admin first.",
+      };
+    }
+  }
+
   const { error } = await adminClient
     .from("profiles")
     .update({ role: "worker", department_id: departmentId })

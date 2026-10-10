@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import NavBar from "@/app/components/NavBar";
 
@@ -24,11 +25,19 @@ export default async function SuperAdminLayout({
     redirect("/");
   }
 
-  const { count: pendingCount } = await supabase
-    .from("role_requests")
-    .select("id", { count: "exact", head: true })
-    .eq("requested_role", "college_admin")
-    .eq("status", "pending");
+  const adminClient = createAdminClient();
+
+  const [{ count: pendingCount }, { count: inquiryCount }] = await Promise.all([
+    supabase
+      .from("role_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("requested_role", "college_admin")
+      .eq("status", "pending"),
+    adminClient
+      .from("contact_submissions")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending"),
+  ]);
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -41,6 +50,7 @@ export default async function SuperAdminLayout({
           { href: "/super-admin/plans", label: "Plans Studio" },
           { href: "/super-admin/transactions", label: "Transactions" },
           { href: "/super-admin/admin-requests", label: "Admin Requests", badge: pendingCount ?? 0 },
+          { href: "/super-admin/inquiries", label: "Inquiries", badge: inquiryCount ?? 0 },
           { href: "/super-admin/analytics", label: "Analytics" },
           { href: "/super-admin/export", label: "Export" },
           { href: "/docs", label: "Docs" },
@@ -51,3 +61,4 @@ export default async function SuperAdminLayout({
     </div>
   );
 }
+

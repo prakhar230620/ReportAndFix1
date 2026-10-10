@@ -18,7 +18,7 @@ export default function SuperAdminDashboard({
   totalWorkers: number;
   totalIssues: number;
 }) {
-  const [activeTab, setActiveTab] = useState<"all" | "active" | "suspended" | "trash">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "active" | "suspended" | "cancelled" | "trash">("all");
   const [search, setSearch] = useState("");
 
   const pendingDeletionCount = useMemo(
@@ -30,26 +30,39 @@ export default function SuperAdminDashboard({
     () =>
       organizations.filter(
         (o) =>
-          o.subscription_status === "active" && !o.subscription_status?.startsWith("pending_deletion")
+          !o.subscription_status?.startsWith("pending_deletion") &&
+          o.subscription_status !== "suspended" &&
+          o.subscription_status !== "frozen" &&
+          o.subscription_status !== "cancelled"
       ).length,
     [organizations]
   );
 
   const suspendedCount = useMemo(
-    () => organizations.filter((o) => o.subscription_status === "suspended").length,
+    () =>
+      organizations.filter(
+        (o) => o.subscription_status === "suspended" || o.subscription_status === "frozen"
+      ).length,
+    [organizations]
+  );
+
+  const cancelledCount = useMemo(
+    () => organizations.filter((o) => o.subscription_status === "cancelled").length,
     [organizations]
   );
 
   const filtered = useMemo(() => {
     return organizations.filter((org) => {
       const isTrash = org.subscription_status?.startsWith("pending_deletion");
-      const isSuspended = org.subscription_status === "suspended";
-      const isActive = !isTrash && !isSuspended;
+      const isSuspended = org.subscription_status === "suspended" || org.subscription_status === "frozen";
+      const isCancelled = org.subscription_status === "cancelled";
+      const isActive = !isTrash && !isSuspended && !isCancelled;
 
       if (activeTab === "active" && !isActive) return false;
       if (activeTab === "suspended" && !isSuspended) return false;
+      if (activeTab === "cancelled" && !isCancelled) return false;
       if (activeTab === "trash" && !isTrash) return false;
-      if (activeTab === "all" && isTrash) return false; // Keep trash in separate tab by default unless tab selected
+      if (activeTab === "all" && isTrash) return false;
 
       if (search.trim()) {
         const q = search.toLowerCase();
@@ -133,16 +146,26 @@ export default function SuperAdminDashboard({
                 activeTab === "active" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"
               }`}
             >
-              Active ({activeCount})
+              ✅ Active ({activeCount})
             </button>
             <button
               onClick={() => setActiveTab("suspended")}
               className={`rounded-md px-3 py-1.5 transition-colors ${
-                activeTab === "suspended" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"
+                activeTab === "suspended" ? "bg-white text-red-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"
               }`}
             >
-              Suspended ({suspendedCount})
+              🚫 Suspended ({suspendedCount})
             </button>
+            {cancelledCount > 0 && (
+              <button
+                onClick={() => setActiveTab("cancelled")}
+                className={`rounded-md px-3 py-1.5 transition-colors ${
+                  activeTab === "cancelled" ? "bg-white text-neutral-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"
+                }`}
+              >
+                ❌ Cancelled ({cancelledCount})
+              </button>
+            )}
             <button
               onClick={() => setActiveTab("trash")}
               className={`relative rounded-md px-3 py-1.5 transition-colors ${
@@ -154,6 +177,7 @@ export default function SuperAdminDashboard({
               🗑️ Trash / Grace Period ({pendingDeletionCount})
             </button>
           </div>
+
 
           {/* Add Org button */}
           <AddCollegeForm />

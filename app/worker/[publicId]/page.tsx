@@ -27,7 +27,7 @@ export default async function WorkerTaskDetailPage({
       .maybeSingle(),
     supabase
       .from("profiles")
-      .select("college_id, colleges(camera_mode)")
+      .select("college_id, colleges(id, name)")
       .eq("id", user!.id)
       .single(),
   ]);
@@ -36,7 +36,7 @@ export default async function WorkerTaskDetailPage({
     return <p className="text-sm text-neutral-500">Task not found or not assigned to you.</p>;
   }
 
-  const cameraMode = ((profile?.colleges as any)?.camera_mode ?? "both") as "both" | "camera_only" | "manual_only";
+  const cameraMode = "both" as "both" | "camera_only" | "manual_only";
 
   const { data: updates } = await supabase
     .from("complaint_progress_updates")

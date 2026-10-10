@@ -42,24 +42,27 @@ export default function StaffMessenger({
   userId,
   initialComplaintId,
   initialComplaintPublicId,
+  initialLocked = false,
 }: {
   collegeId: string;
   userRole: string;
   userId: string;
   initialComplaintId?: string;
   initialComplaintPublicId?: string;
+  initialLocked?: boolean;
 }) {
   const [messages, setMessages] = useState<StaffMessage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialLocked);
   const [sending, setSending] = useState(false);
   const [inputText, setInputText] = useState(
     initialComplaintPublicId ? `#${initialComplaintPublicId} ` : ""
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [upgradeRequired, setUpgradeRequired] = useState(false);
+  const [upgradeRequired, setUpgradeRequired] = useState(initialLocked);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const fetchMessages = async () => {
+    if (initialLocked) return;
     try {
       const res = await fetch("/api/messages");
       if (!res.ok) {
@@ -83,10 +86,11 @@ export default function StaffMessenger({
   };
 
   useEffect(() => {
+    if (initialLocked) return;
     fetchMessages();
     const interval = setInterval(fetchMessages, 10000); // 10s poll for active chat
     return () => clearInterval(interval);
-  }, []);
+  }, [initialLocked]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -138,6 +142,17 @@ export default function StaffMessenger({
       // ignore
     }
   };
+
+  // Show loading skeleton first — this prevents the "Locked" box flashing
+  // briefly while the API call resolves for users who DO have messaging access.
+  if (loading) {
+    return (
+      <div className="flex flex-col h-[400px] rounded-2xl border border-neutral-200 bg-white p-8 items-center justify-center text-neutral-400 text-xs gap-2 shadow-xs">
+        <div className="h-4 w-4 rounded-full border-2 border-neutral-300 border-t-neutral-800 animate-spin" />
+        <span>Loading messages...</span>
+      </div>
+    );
+  }
 
   if (upgradeRequired) {
     return (

@@ -152,15 +152,31 @@ export async function POST(req: NextRequest) {
     console.warn("Redis pre-cache warning:", err);
   }
 
+  // Idempotency: if a row with the same key already exists, skip insert and return it
+  const idempotencyKey = String(formData.get("idempotency_key") ?? "");
+  if (idempotencyKey) {
+    const { data: existing } = await adminClient
+      .from("complaint_media")
+      .select("id, storage_path")
+      .eq("idempotency_key", idempotencyKey)
+      .maybeSingle();
+    if (existing) {
+      return NextResponse.json({ media: existing });
+    }
+  }
+
   // Insert using adminClient to avoid RLS block for authenticated reporters
+  const insertPayload: Record<string, any> = {
+    complaint_id: complaintId,
+    uploaded_by: user.id,
+    storage_path: storagePath,
+    media_type: mediaType,
+  };
+  if (idempotencyKey) insertPayload.idempotency_key = idempotencyKey;
+
   const { data: mediaRow, error: mediaError } = await adminClient
     .from("complaint_media")
-    .insert({
-      complaint_id: complaintId,
-      uploaded_by: user.id,
-      storage_path: storagePath,
-      media_type: mediaType,
-    })
+    .insert(insertPayload)
     .select("id, storage_path")
     .single();
 

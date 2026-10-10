@@ -83,6 +83,7 @@ export default async function DeptAdminMessagesPage() {
         collegeId={profile.college_id ?? ""}
         userRole={profile.role}
         userId={user.id}
+        initialLocked={!messagingEnabled}
       />
     </div>
   );

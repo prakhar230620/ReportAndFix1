@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, Trash2, CheckSquare, Square } from "lucide-react";
 import { ButtonSpinner } from "@/app/components/Spinner";
 import { createDeletionRequest } from "@/app/admin/data-deletion/actions";
@@ -31,6 +32,7 @@ export default function DataDeletionForm({
   downloadChargePaise: number;
   downloadFree: boolean;
 }) {
+  const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +67,7 @@ export default function DataDeletionForm({
     });
     setLoading(false);
     if (res.error) { setError(res.error); return; }
-    window.location.reload();
+    router.refresh();
   }
 
   if (complaints.length === 0) {

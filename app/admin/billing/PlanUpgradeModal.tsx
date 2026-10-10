@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, X, Zap, MessageSquare, Download, HardDrive, Users } from "lucide-react";
 import { formatPrice, planColor, planFeatureLabel, isUnlimited, type Plan } from "@/lib/plans";
@@ -24,6 +25,7 @@ export default function PlanUpgradeModal({
   collegeId: string;
   billingCycle: "monthly" | "yearly";
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [billing, setBilling] = useState<"monthly" | "yearly">(initialCycle);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
@@ -87,7 +89,8 @@ export default function PlanUpgradeModal({
           });
           const verifyData = await verifyRes.json();
           if (verifyData.ok || verifyData.success) {
-            window.location.reload();
+            setOpen(false);
+            router.refresh();
           } else {
             setError(verifyData.error ?? "Payment verification failed. Contact support.");
           }

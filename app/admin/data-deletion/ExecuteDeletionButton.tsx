@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Trash2, AlertTriangle } from "lucide-react";
 import { ButtonSpinner } from "@/app/components/Spinner";
 import { executePermanentDeletion } from "./actions";
@@ -12,6 +13,7 @@ export default function ExecuteDeletionButton({
   requestId: string;
   complaintCount: number;
 }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -28,7 +30,7 @@ export default function ExecuteDeletionButton({
     if (res.error) {
       setError(res.error);
     } else {
-      window.location.reload();
+      router.refresh();
     }
   }
 

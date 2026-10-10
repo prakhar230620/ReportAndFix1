@@ -12,10 +12,14 @@ export async function startProcessing(complaintId: string) {
 
   const { data: complaint, error: fetchError } = await supabase
     .from("complaints")
-    .select("status")
+    .select("status, public_id")
     .eq("id", complaintId)
     .single();
   if (fetchError || !complaint) return { error: "Task not found" };
+
+  if (complaint.status === "waiting_for_verification" || complaint.status === "completed" || complaint.status === "closed") {
+    return { error: "This task has already been submitted for verification.", status: complaint.status };
+  }
 
   const { error } = await supabase
     .from("complaints")
@@ -31,8 +35,9 @@ export async function startProcessing(complaintId: string) {
     actor_id: user.id,
   });
 
-  revalidatePath(`/worker/${complaintId}`);
-  return { ok: true };
+  revalidatePath(`/worker/${complaint.public_id}`);
+  revalidatePath(`/worker`);
+  return { ok: true, status: "processing" };
 }
 
 export async function addProgressUpdate(complaintId: string, note: string) {
@@ -63,10 +68,14 @@ export async function finishTask(complaintId: string, finalNote: string) {
 
   const { data: complaint, error: fetchError } = await supabase
     .from("complaints")
-    .select("status")
+    .select("status, public_id")
     .eq("id", complaintId)
     .single();
   if (fetchError || !complaint) return { error: "Task not found" };
+
+  if (complaint.status === "waiting_for_verification" || complaint.status === "completed" || complaint.status === "closed") {
+    return { ok: true, status: complaint.status };
+  }
 
   if (finalNote.trim()) {
     await supabase.from("complaint_progress_updates").insert({
@@ -90,6 +99,7 @@ export async function finishTask(complaintId: string, finalNote: string) {
     actor_id: user.id,
   });
 
-  revalidatePath(`/worker/${complaintId}`);
-  return { ok: true };
+  revalidatePath(`/worker/${complaint.public_id}`);
+  revalidatePath(`/worker`);
+  return { ok: true, status: "waiting_for_verification" };
 }

@@ -83,25 +83,27 @@ export async function createCollege(formData: FormData) {
     const allow_worker_signup = formData.get("allow_worker_signup") === "true";
     const allow_admin_signup = formData.get("allow_admin_signup") === "true";
 
-    const camera_mode = String(formData.get("camera_mode") ?? "both");
+    const insertPayload: Record<string, any> = {
+      name,
+      category,
+      address,
+      contact_email,
+      contact_phone,
+      allow_worker_signup,
+      allow_admin_signup,
+      subscription_status: "trial",
+    };
 
     const { data: college, error } = await supabase
       .from("colleges")
-      .insert({
-        name,
-        category,
-        address,
-        contact_email,
-        contact_phone,
-        allow_worker_signup,
-        allow_admin_signup,
-        camera_mode,
-        subscription_status: "active",
-      })
+      .insert(insertPayload)
       .select("id")
       .single();
 
-    if (error) return { error: error.message };
+    if (error) {
+      console.error("[createCollege] DB error:", error);
+      return { error: error.message.includes("schema cache") || error.message.includes("column") ? "Unable to register organization. Please verify the input." : error.message };
+    }
 
     await supabase
       .from("categories")
@@ -125,23 +127,25 @@ export async function updateCollege(collegeId: string, formData: FormData) {
     const allow_worker_signup = formData.get("allow_worker_signup") === "true";
     const allow_admin_signup = formData.get("allow_admin_signup") === "true";
 
-    const camera_mode = String(formData.get("camera_mode") ?? "both");
+    const updatePayload: Record<string, any> = {
+      name,
+      category,
+      address,
+      contact_email,
+      contact_phone,
+      allow_worker_signup,
+      allow_admin_signup,
+    };
 
     const { error } = await supabase
       .from("colleges")
-      .update({
-        name,
-        category,
-        address,
-        contact_email,
-        contact_phone,
-        allow_worker_signup,
-        allow_admin_signup,
-        camera_mode,
-      })
+      .update(updatePayload)
       .eq("id", collegeId);
 
-    if (error) return { error: error.message };
+    if (error) {
+      console.error("[updateCollege] DB error:", error);
+      return { error: error.message.includes("schema cache") || error.message.includes("column") ? "Unable to update organization settings." : error.message };
+    }
     revalidatePath("/super-admin");
     return { ok: true };
   } catch (err: any) {

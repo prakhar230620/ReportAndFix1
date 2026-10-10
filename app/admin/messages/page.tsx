@@ -86,6 +86,7 @@ export default async function AdminMessagesPage() {
         collegeId={profile.college_id ?? ""}
         userRole={profile.role}
         userId={user.id}
+        initialLocked={!messagingEnabled}
       />
     </div>
   );

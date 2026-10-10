@@ -28,9 +28,14 @@ export default function TaskActions({
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const submitting = useRef(false);
+  // Use STATE (not ref) for submitting so button re-renders and becomes visually disabled
+  const [submitting, setSubmitting] = useState(false);
 
+  const [currentStatus, setCurrentStatus] = useState(status);
   const isCameraDisabled = cameraMode === "manual_only";
+
+  // Idempotency key per submission session prevents StrictMode double-invoke duplicates
+  const uploadSessionKey = useRef<string>("");
 
   async function handleFiles(selected: FileList | null) {
     if (!selected || selected.length === 0) return;
@@ -70,12 +75,17 @@ export default function TaskActions({
     setFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function handleStart() {
+  async function handleStart() {
     setError(null);
     startTransition(async () => {
       const result = await startProcessing(complaintId);
-      if (result.error) setError(result.error);
-      else router.refresh();
+      if (result.error) {
+        setError(result.error);
+        if ((result as any).status) setCurrentStatus((result as any).status);
+      } else {
+        setCurrentStatus("processing");
+        router.refresh();
+      }
     });
   }
 
@@ -103,45 +113,56 @@ export default function TaskActions({
       return;
     }
 
-    if (submitting.current || pending) return; // prevent double-submit
-    submitting.current = true;
+    if (submitting) return; // prevent double-submit
+    setSubmitting(true);
     setError(null);
 
-    startTransition(async () => {
-      try {
-        if (files.length > 0) {
-          setUploadProgress(`Uploading 0/${files.length}…`);
-          let doneCount = 0;
-          const results = await Promise.all(
-            files.map(async (file, i) => {
-              const fd = new FormData();
-              fd.append("file", file);
-              fd.append("complaint_id", complaintId);
-              fd.append("media_type", "after");
-              const res = await fetch("/api/complaints/media", { method: "POST", body: fd });
-              doneCount += 1;
-              setUploadProgress(`Uploading ${doneCount}/${files.length}…`);
-              if (!res.ok) {
-                const body = await res.json().catch(() => ({}));
-                return { index: i, error: body.error ?? res.statusText };
-              }
-              return null;
-            })
-          );
-          const failed = results.filter(Boolean) as { index: number; error: string }[];
-          setUploadProgress(null);
-          if (failed.length > 0) {
-            setError(`${failed.length} photo(s) failed to upload: ${failed.map((f) => f.error).join("; ")}`);
-            return;
-          }
+    // Unique idempotency key for this entire upload session
+    uploadSessionKey.current = `${complaintId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const sessionKey = uploadSessionKey.current;
+
+    try {
+      if (files.length > 0) {
+        setUploadProgress(`Uploading 0/${files.length}\u2026`);
+        let doneCount = 0;
+        const results = await Promise.all(
+          files.map(async (file, i) => {
+            const fd = new FormData();
+            fd.append("file", file);
+            fd.append("complaint_id", complaintId);
+            fd.append("media_type", "after");
+            // Per-file idempotency key: same key = same DB row (upsert on conflict)
+            fd.append("idempotency_key", `${sessionKey}-${i}`);
+            const res = await fetch("/api/complaints/media", { method: "POST", body: fd });
+            doneCount += 1;
+            setUploadProgress(`Uploading ${doneCount}/${files.length}\u2026`);
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({}));
+              return { index: i, error: body.error ?? res.statusText };
+            }
+            return null;
+          })
+        );
+        const failed = results.filter(Boolean) as { index: number; error: string }[];
+        setUploadProgress(null);
+        if (failed.length > 0) {
+          setError(`${failed.length} photo(s) failed to upload: ${failed.map((f) => f.error).join("; ")}`);
+          setSubmitting(false);
+          return;
         }
-        const result = await finishTask(complaintId, finalNote);
-        if (result.error) setError(result.error);
-        else router.refresh();
-      } finally {
-        submitting.current = false;
       }
-    });
+      const result = await finishTask(complaintId, finalNote);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setCurrentStatus("waiting_for_verification");
+        setFiles([]);
+        setFinalNote("");
+        router.refresh();
+      }
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const canFinish = isCameraDisabled ? finalNote.trim().length > 0 : files.length > 0;
@@ -150,7 +171,7 @@ export default function TaskActions({
     <div className="flex flex-col gap-4">
       {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
 
-      {status === "assigned" && (
+      {currentStatus === "assigned" && (
         <button
           onClick={handleStart}
           disabled={pending}
@@ -161,7 +182,7 @@ export default function TaskActions({
         </button>
       )}
 
-      {status === "processing" && (
+      {currentStatus === "processing" && (
         <>
           <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
             <h3 className="text-sm font-semibold text-neutral-800">Add progress note</h3>
@@ -187,7 +208,8 @@ export default function TaskActions({
 
             {isCameraDisabled ? (
               <div className="rounded-md border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
-                📷 <strong>No Camera Permission:</strong> Mobile photo capture is restricted for this organisation. Provide task description notes below to submit.
+                📷 <strong>No Camera Permission:</strong> Mobile photo capture is restricted for this
+                organisation. Provide task description notes below to submit.
               </div>
             ) : (
               <>
@@ -196,17 +218,18 @@ export default function TaskActions({
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   capture="environment"
-                  disabled={compressing || files.length >= MAX_FILES}
+                  disabled={compressing || files.length >= MAX_FILES || submitting}
                   onChange={(e) => {
                     handleFiles(e.target.files);
-                    e.target.value = ""; // Reset to prevent double event
+                    e.target.value = ""; // Reset input to prevent double-fire
                   }}
                   className="text-sm"
                 />
                 {fileError && <p className="text-xs text-red-600">{fileError}</p>}
                 {compressing && (
                   <p className="flex items-center gap-1.5 text-xs text-neutral-500">
-                    <ButtonSpinner className="border-neutral-300 border-t-blue-600" /> Compressing photo…
+                    <ButtonSpinner className="border-neutral-300 border-t-blue-600" /> Compressing
+                    photo…
                   </p>
                 )}
                 {files.length > 0 && (
@@ -216,8 +239,15 @@ export default function TaskActions({
                         key={i}
                         className="flex items-center justify-between rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs text-neutral-600"
                       >
-                        <span>Photo {i + 1} ({(f.size / 1024).toFixed(0)} KB)</span>
-                        <button type="button" onClick={() => removeFile(i)} className="font-medium text-red-600">
+                        <span>
+                          Photo {i + 1} ({(f.size / 1024).toFixed(0)} KB)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeFile(i)}
+                          disabled={submitting}
+                          className="font-medium text-red-600 disabled:opacity-40"
+                        >
                           Remove
                         </button>
                       </li>
@@ -231,7 +261,11 @@ export default function TaskActions({
               value={finalNote}
               onChange={(e) => setFinalNote(e.target.value)}
               rows={2}
-              placeholder={isCameraDisabled ? "Required: Describe what fix was completed" : "Final work notes (optional)"}
+              placeholder={
+                isCameraDisabled
+                  ? "Required: Describe what fix was completed"
+                  : "Final work notes (optional)"
+              }
               className="rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
             />
 
@@ -243,21 +277,25 @@ export default function TaskActions({
 
             <button
               onClick={handleFinish}
-              disabled={pending || compressing || !canFinish}
+              disabled={submitting || compressing || !canFinish}
               className="flex w-fit items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-50"
             >
-              {pending && <ButtonSpinner />}
+              {submitting && <ButtonSpinner />}
               Submit for verification
             </button>
           </div>
         </>
       )}
 
-      {status === "waiting_for_verification" && (
-        <p className="text-sm text-neutral-500">Submitted — waiting on admin verification.</p>
+      {currentStatus === "waiting_for_verification" && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-4 text-sm text-blue-900 font-medium">
+          ✓ Task submitted — waiting on admin verification.
+        </div>
       )}
-      {status === "completed" && (
-        <p className="text-sm text-green-700">This task is completed. Nice work.</p>
+      {currentStatus === "completed" && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-900 font-medium">
+          ✓ This task is completed. Nice work.
+        </div>
       )}
     </div>
   );
