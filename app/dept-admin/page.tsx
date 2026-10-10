@@ -11,6 +11,7 @@ import {
   Building2,
   Users,
 } from "lucide-react";
+import TodaysBroadcasts from "@/app/components/TodaysBroadcasts";
 
 export default async function DeptAdminDashboard() {
   const supabase = await createClient();
@@ -129,6 +130,13 @@ export default async function DeptAdminDashboard() {
           </Link>
         </div>
       </div>
+
+      {/* Today's Broadcasts Section for Department Admin */}
+      <TodaysBroadcasts
+        collegeId={profile.college_id}
+        userRole="dept_admin"
+        collegeName={collegeName}
+      />
 
       {/* Action Alerts */}
       {waitingVerificationCount > 0 && (

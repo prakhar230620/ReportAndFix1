@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { StatusBadge, PriorityBadge, UnreadDot } from "@/app/components/StatusBadge";
+import TodaysBroadcasts from "@/app/components/TodaysBroadcasts";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -11,14 +12,31 @@ export default async function WorkerTasksPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: tasks } = await supabase
-    .from("complaints")
-    .select("id, public_id, title, status, priority, created_at, categories(name), locations(name)")
-    .eq("assigned_worker_id", user!.id)
-    .order("created_at", { ascending: false });
+  const [{ data: tasks }, { data: profile }] = await Promise.all([
+    supabase
+      .from("complaints")
+      .select("id, public_id, title, status, priority, created_at, categories(name), locations(name)")
+      .eq("assigned_worker_id", user!.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("profiles")
+      .select("role, college_id, colleges(name)")
+      .eq("id", user!.id)
+      .single(),
+  ]);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-5">
+      {/* Today's Broadcasts Section for Worker */}
+      {profile?.college_id && (
+        <TodaysBroadcasts
+          collegeId={profile.college_id}
+          userRole="worker"
+          collegeName={(profile.colleges as any)?.name}
+        />
+      )}
+
+      <div className="flex flex-col gap-3">
       {(tasks ?? []).map((t) => (
         <Link
           key={t.id}
@@ -48,6 +66,7 @@ export default async function WorkerTasksPage() {
           No tasks assigned to you yet.
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import Hero3DCanvas from "@/app/components/Hero3DCanvas";
 import PricingSection from "@/app/components/PricingSection";
 import DocumentationSection from "@/app/components/DocumentationSection";
 import ContactForm from "@/app/components/ContactForm";
+import TodaysBroadcasts from "@/app/components/TodaysBroadcasts";
 import {
   QrCode,
   ShieldCheck,
@@ -298,6 +299,7 @@ export default async function HomePage() {
 
   if (profile?.role === "college_admin") {
     links.push({ href: "/admin/queue", label: "Complaint Queue", sub: "Assign depts & verify", badge: queuePendingCount });
+    links.push({ href: "/admin/broadcasts", label: "Broadcast Announcements", sub: "Publish campus notices up to 72 hours" });
     links.push({ href: "/admin/billing", label: "Plans & Billing", sub: "Subscription, quotas & invoices" });
     links.push({ href: "/admin/data-deletion", label: "Data Deletion", sub: "Purge completed complaints" });
     links.push({ href: "/admin/locations", label: "Locations & QR", sub: "Campus rooms and QR codes" });
@@ -380,6 +382,15 @@ export default async function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Today's Broadcasts Section for All Roles in this Organisation */}
+      {profile?.college_id && (
+        <TodaysBroadcasts
+          collegeId={profile.college_id}
+          userRole={profile.role}
+          collegeName={(profile.colleges as any)?.name}
+        />
+      )}
 
       {/* Navigation Directory */}
       <div className="flex flex-col gap-2.5">

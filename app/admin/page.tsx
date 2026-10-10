@@ -15,8 +15,10 @@ import {
   CheckCircle2,
   Clock,
   Trash2,
+  Radio,
 } from "lucide-react";
 import JoinCodeCard from "./JoinCodeCard";
+import TodaysBroadcasts from "@/app/components/TodaysBroadcasts";
 
 
 export default async function AdminDashboardPage() {
@@ -88,6 +90,13 @@ export default async function AdminDashboardPage() {
             Manage Queue
           </Link>
           <Link
+            href="/admin/broadcasts"
+            className="inline-flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50"
+          >
+            <Radio className="h-4 w-4 text-blue-600" />
+            Broadcasts
+          </Link>
+          <Link
             href="/admin/billing"
             className="inline-flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50"
           >
@@ -96,6 +105,9 @@ export default async function AdminDashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* Today's Broadcasts Section for Admin */}
+      <TodaysBroadcasts collegeId={collegeId} userRole="college_admin" collegeName={collegeName} />
 
       {/* Subscription Alert */}
       {subscription && daysLeft !== null && daysLeft <= 15 && daysLeft > 0 && (

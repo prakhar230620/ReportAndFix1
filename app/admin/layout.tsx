@@ -105,6 +105,7 @@ export default async function AdminLayout({
           { href: "/", label: "Home" },
           { href: "/admin", label: "Dashboard" },
           { href: "/admin/queue", label: "Queue", badge: queuePendingCount },
+          { href: "/admin/broadcasts", label: "Broadcasts" },
           { href: "/admin/messages", label: "Messages" },
           { href: "/admin/role-requests", label: "Role Requests", badge: roleRequestCount },
           { href: "/admin/departments", label: "Departments" },
