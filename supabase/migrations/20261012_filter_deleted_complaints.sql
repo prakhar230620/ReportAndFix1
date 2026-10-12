@@ -1,6 +1,7 @@
 -- Migration: Ensure deleted_at IS NULL across all complaint query functions
 
 -- 1. get_completed_issues
+DROP FUNCTION IF EXISTS get_completed_issues(uuid);
 CREATE OR REPLACE FUNCTION get_completed_issues(p_college_id uuid)
 RETURNS TABLE (
   id uuid,
@@ -47,8 +48,10 @@ RETURNS TABLE (
   GROUP BY c.id, c.public_id, c.title, c.completed_at, c.resolution_seconds, cat.name, loc.name
   ORDER BY c.completed_at DESC;
 $$;
+GRANT EXECUTE ON FUNCTION get_completed_issues(uuid) TO anon, authenticated, service_role;
 
 -- 2. get_today_open_issues
+DROP FUNCTION IF EXISTS get_today_open_issues(uuid);
 CREATE OR REPLACE FUNCTION get_today_open_issues(p_college_id uuid)
 RETURNS TABLE (
   id uuid,
@@ -87,8 +90,11 @@ RETURNS TABLE (
   GROUP BY c.id, c.public_id, c.title, c.status, c.priority, cat.name, loc.name
   ORDER BY c.created_at DESC;
 $$;
+GRANT EXECUTE ON FUNCTION get_today_open_issues(uuid) TO anon, authenticated, service_role;
 
 -- 3. get_admin_queue
+DROP FUNCTION IF EXISTS get_admin_queue(uuid, text, uuid, uuid);
+DROP FUNCTION IF EXISTS get_admin_queue(uuid);
 CREATE OR REPLACE FUNCTION get_admin_queue(
   p_college_id uuid,
   p_status text DEFAULT NULL,
@@ -128,3 +134,5 @@ RETURNS TABLE (
     AND (p_location_id IS NULL OR c.location_id = p_location_id)
   ORDER BY c.created_at DESC;
 $$;
+GRANT EXECUTE ON FUNCTION get_admin_queue(uuid, text, uuid, uuid) TO authenticated, service_role;
+
