@@ -1,7 +1,6 @@
 import { getActiveBroadcasts, BroadcastPriority } from "@/lib/broadcasts";
 import {
   Radio,
-  Clock,
   AlertTriangle,
   AlertOctagon,
   Wrench,
@@ -68,14 +67,7 @@ const PRIORITY_STYLES: Record<
   },
 };
 
-function formatTimeRemaining(expiresAt: string) {
-  const diffMs = new Date(expiresAt).getTime() - Date.now();
-  if (diffMs <= 0) return "Expiring soon";
-  const hours = Math.floor(diffMs / (1000 * 60 * 60));
-  const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-  if (hours > 0) return `${hours}h ${mins}m remaining`;
-  return `${mins}m remaining`;
-}
+
 
 export default async function TodaysBroadcasts({
   collegeId,
@@ -124,10 +116,6 @@ export default async function TodaysBroadcasts({
                   <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${style.badge}`}>
                     <Icon className="h-3 w-3" />
                     {style.label}
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-600">
-                    <Clock className="h-3 w-3 text-neutral-400" />
-                    {formatTimeRemaining(b.expires_at)}
                   </span>
                 </div>
 

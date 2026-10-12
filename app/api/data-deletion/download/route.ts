@@ -58,6 +58,23 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Not all required admin approvals have been received." }, { status: 400 });
     }
 
+    // Check if download fee payment is required
+    const { data: subscription } = await adminClient
+      .from("org_subscriptions")
+      .select("*, plans(data_download_free)")
+      .eq("college_id", request.college_id)
+      .maybeSingle();
+
+    const isDownloadFree = (subscription?.plans as any)?.data_download_free === true;
+    const isPaid = request.charge_paid === true || !!request.charge_payment_id;
+
+    if (!isDownloadFree && !isPaid) {
+      return NextResponse.json(
+        { error: "Payment required: You must pay the download fee before downloading the data archive." },
+        { status: 402 }
+      );
+    }
+
     // Generate archive
     const { zipBuffer, filename } = await createDataExportArchive({
       collegeId: request.college_id,

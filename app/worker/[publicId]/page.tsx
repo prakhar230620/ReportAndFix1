@@ -24,6 +24,7 @@ export default async function WorkerTaskDetailPage({
       )
       .eq("public_id", publicId)
       .eq("assigned_worker_id", user!.id)
+      .is("deleted_at", null)
       .maybeSingle(),
     supabase
       .from("profiles")

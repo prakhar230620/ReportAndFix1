@@ -5,6 +5,8 @@ import { cached } from "@/lib/cache";
 import AnalyticsCharts from "./AnalyticsCharts";
 
 export const maxDuration = 30;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function AnalyticsPage() {
   const supabase = await createClient();

@@ -59,6 +59,7 @@ export default async function DeptAdminQueuePage({
       "id, public_id, title, status, priority, created_at, assigned_worker_id, categories(id, name), locations(id, name)"
     )
     .eq("assigned_department_id", deptId)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   if (status) {
@@ -85,7 +86,11 @@ export default async function DeptAdminQueuePage({
     { data: auditDeptVerified },
   ] = await Promise.all([
     query,
-    adminClient.from("complaints").select("id, status, assigned_worker_id").eq("assigned_department_id", deptId),
+    adminClient
+      .from("complaints")
+      .select("id, status, assigned_worker_id")
+      .eq("assigned_department_id", deptId)
+      .is("deleted_at", null),
     // Workers in this dept (for the assignment form)
     adminClient.from("profiles").select("id, display_name").eq("department_id", deptId).eq("role", "worker"),
     // All workers in the college (to resolve assigned_worker_id names on any complaint)

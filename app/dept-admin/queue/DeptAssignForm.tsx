@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ButtonSpinner } from "@/app/components/Spinner";
 import { assignComplaint, unassignComplaint } from "@/app/admin/queue/actions";
 import { UserCheck, UserMinus, AlertCircle } from "lucide-react";
@@ -20,6 +21,7 @@ export default function DeptAssignForm({
   currentWorkerId: string | null;
   currentWorkerName?: string | null;
 }) {
+  const router = useRouter();
   const [workerId, setWorkerId] = useState(currentWorkerId || "");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -40,6 +42,7 @@ export default function DeptAssignForm({
         setError(res.error);
       } else {
         setSuccess("Worker assigned successfully!");
+        router.refresh();
       }
     });
   }
@@ -54,6 +57,7 @@ export default function DeptAssignForm({
       } else {
         setSuccess("Complaint unassigned.");
         setWorkerId("");
+        router.refresh();
       }
     });
   }

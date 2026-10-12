@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import { getAdminBroadcasts } from "@/lib/broadcasts";
 import BroadcastsManagerClient from "./BroadcastsManagerClient";
@@ -28,7 +29,21 @@ export default async function BroadcastsPage() {
 
   const collegeName = (profile.colleges as any)?.name ?? "Organisation";
 
-  const { active, expired, tableExists } = await getAdminBroadcasts(collegeId);
+  const adminClient = createAdminClient();
+  const [{ active, expired, tableExists }, { data: sub }] = await Promise.all([
+    getAdminBroadcasts(collegeId),
+    adminClient
+      .from("org_subscriptions")
+      .select("status, plans(broadcasting_enabled, name, slug)")
+      .eq("college_id", collegeId)
+      .in("status", ["active", "trial", "manually_assigned"])
+      .maybeSingle(),
+  ]);
+
+  const plan = sub?.plans as any;
+  // If plan exists and broadcasting_enabled is explicitly false, it is disabled
+  const broadcastingEnabled = plan ? plan.broadcasting_enabled !== false : true;
+  const planName = plan?.name ?? "Starter";
 
   return (
     <BroadcastsManagerClient
@@ -36,6 +51,8 @@ export default async function BroadcastsPage() {
       initialActive={active}
       initialExpired={expired}
       tableExists={tableExists}
+      broadcastingEnabled={broadcastingEnabled}
+      planName={planName}
     />
   );
 }

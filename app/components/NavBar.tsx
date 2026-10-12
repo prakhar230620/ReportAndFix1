@@ -43,16 +43,33 @@ export default function NavBar({
             <BrandLogo size="sm" showWordmark={false} href="/" />
           ) : logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <Link href="/" title="Home">
-              <img src={logoUrl} alt="" className="h-7 w-7 rounded-lg border border-neutral-200 object-contain p-0.5 hover:opacity-80 transition" />
+            <Link href="/" title="Home" className="relative flex h-10 w-10 items-center justify-center shrink-0">
+              <img
+                src={logoUrl}
+                alt="Organisation Logo"
+                className="h-10 w-10 rounded-xl border border-neutral-200/90 bg-white object-contain p-1 shadow-2xs hover:opacity-85 transition"
+                onError={(e) => {
+                  // Hide broken image and show fallback building icon
+                  const target = e.currentTarget;
+                  target.style.display = 'none';
+                  const fallback = target.nextElementSibling as HTMLElement | null;
+                  if (fallback) fallback.style.display = 'flex';
+                }}
+              />
+              <span
+                style={{ display: 'none' }}
+                className="absolute inset-0 flex h-10 w-10 items-center justify-center rounded-xl border border-neutral-200 bg-neutral-100 text-neutral-500"
+              >
+                <Building2 className="h-5 w-5" />
+              </span>
             </Link>
           ) : (
-            <Link href="/" title="Home" className="flex h-7 w-7 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-100 text-neutral-500 hover:bg-neutral-200 transition">
-              <Building2 className="h-4 w-4" />
+            <Link href="/" title="Home" className="flex h-10 w-10 items-center justify-center rounded-xl border border-neutral-200 bg-neutral-100 text-neutral-500 hover:bg-neutral-200 transition shrink-0">
+              <Building2 className="h-5 w-5" />
             </Link>
           )}
 
-          <span className="font-semibold text-neutral-900">{brand}</span>
+          <span className="text-xs sm:text-sm font-medium text-neutral-700 tracking-tight">{brand}</span>
           {notify && (
             <NotificationBell
               role={notify.role}

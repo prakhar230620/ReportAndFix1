@@ -17,6 +17,7 @@ export default async function WorkerTasksPage() {
       .from("complaints")
       .select("id, public_id, title, status, priority, created_at, categories(name), locations(name)")
       .eq("assigned_worker_id", user!.id)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false }),
     supabase
       .from("profiles")

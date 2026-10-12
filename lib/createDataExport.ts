@@ -180,6 +180,7 @@ export async function createDataExportArchive({
   const orgName = college?.name ?? "Organisation";
 
   // Fetch complete complaint records with categories and locations
+  // (no image_urls / worker_notes — those columns don't exist; media is in complaint_media)
   const { data: complaints, error } = await adminClient
     .from("complaints")
     .select(`
@@ -188,21 +189,34 @@ export async function createDataExportArchive({
       title,
       description,
       status,
+      priority,
       created_at,
       completed_at,
       location_id,
       category_id,
-      image_urls,
-      worker_notes,
       assigned_worker_id,
+      assigned_department_id,
       categories (name),
-      locations (name, code)
+      locations (name)
     `)
     .eq("college_id", collegeId)
     .in("id", complaintIds);
 
   if (error || !complaints) {
     throw new Error(`Failed to retrieve complaints: ${error?.message || "Not found"}`);
+  }
+
+  // Fetch media for all complaints in one query
+  const { data: allMedia } = await adminClient
+    .from("complaint_media")
+    .select("complaint_id, storage_path, media_type, created_at")
+    .in("complaint_id", complaintIds);
+
+  // Group media by complaint_id for easy lookup
+  const mediaByComplaint: Record<string, Array<{ storage_path: string; media_type: string; created_at: string }>> = {};
+  for (const m of allMedia ?? []) {
+    if (!mediaByComplaint[m.complaint_id]) mediaByComplaint[m.complaint_id] = [];
+    mediaByComplaint[m.complaint_id].push(m);
   }
 
   // Create ZIP
@@ -220,12 +234,15 @@ export async function createDataExportArchive({
       description: c.description,
       category: (c.categories as any)?.name ?? null,
       location: (c.locations as any)?.name ?? null,
-      location_code: (c.locations as any)?.code ?? null,
       status: c.status,
+      priority: c.priority ?? null,
       created_at: c.created_at,
       completed_at: c.completed_at,
-      worker_notes: c.worker_notes,
-      media_files: c.image_urls ?? [],
+      media_files: (mediaByComplaint[c.id] ?? []).map((m) => ({
+        storage_path: m.storage_path,
+        media_type: m.media_type,
+        created_at: m.created_at,
+      })),
     })),
   };
 
@@ -247,22 +264,10 @@ export async function createDataExportArchive({
   let totalMediaFiles = 0;
 
   for (const c of complaints) {
-    const urls = c.image_urls || [];
-    for (const rawUrl of urls) {
-      if (!rawUrl) continue;
-
-      let key = rawUrl;
-      // Strip any query params or domain prefix if present
-      if (rawUrl.includes("?path=")) {
-        key = decodeURIComponent(rawUrl.split("?path=")[1]);
-      } else if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
-        try {
-          const parsed = new URL(rawUrl);
-          key = parsed.pathname.replace(/^\//, "");
-        } catch {
-          // Use rawUrl as key
-        }
-      }
+    const mediaItems = mediaByComplaint[c.id] ?? [];
+    for (const item of mediaItems) {
+      const key = item.storage_path;
+      if (!key) continue;
 
       try {
         const fileObj = await getFromB2(key);

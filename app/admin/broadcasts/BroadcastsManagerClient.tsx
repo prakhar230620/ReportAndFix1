@@ -26,6 +26,8 @@ interface Props {
   initialActive: Broadcast[];
   initialExpired: Broadcast[];
   tableExists: boolean;
+  broadcastingEnabled?: boolean;
+  planName?: string;
 }
 
 const PRESET_HOURS = [2, 6, 12, 24, 48, 72];
@@ -81,6 +83,8 @@ export default function BroadcastsManagerClient({
   initialActive,
   initialExpired,
   tableExists,
+  broadcastingEnabled = true,
+  planName = "Starter",
 }: Props) {
   const router = useRouter();
 
@@ -228,6 +232,33 @@ export default function BroadcastsManagerClient({
           >
             ✕
           </button>
+        </div>
+      )}
+
+      {/* Plan Upgrade Banner if Broadcasting is not enabled */}
+      {!broadcastingEnabled && (
+        <div className="rounded-2xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50/90 via-purple-50/90 to-blue-50/90 p-5 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-indigo-600 p-2.5 text-white shadow-sm shrink-0">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-neutral-900">
+                  Broadcasting is a Premium Plan Feature
+                </h3>
+                <p className="text-xs text-neutral-600 mt-0.5 max-w-xl">
+                  Your organisation is currently on the <strong>{planName}</strong> plan. Broadcasting alerts and announcements across your organisation requires an upgrade to a higher tier plan (Professional or Enterprise).
+                </p>
+              </div>
+            </div>
+            <a
+              href="/admin/billing"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 shrink-0 transition"
+            >
+              Upgrade in Billing & Plans →
+            </a>
+          </div>
         </div>
       )}
 
@@ -392,15 +423,25 @@ export default function BroadcastsManagerClient({
 
             {/* Submit Action */}
             <div className="flex items-center justify-end gap-3 pt-2 border-t border-neutral-100">
+              {!broadcastingEnabled && (
+                <span className="text-xs text-amber-700 font-medium">
+                  Plan upgrade required to publish broadcasts
+                </span>
+              )}
               <button
                 type="submit"
-                disabled={submitting || !title.trim() || !message.trim()}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition"
+                disabled={submitting || !broadcastingEnabled || !title.trim() || !message.trim()}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-40 transition"
               >
                 {submitting ? (
                   <>
                     <span className="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     <span>Publishing...</span>
+                  </>
+                ) : !broadcastingEnabled ? (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                    <span>Upgrade Plan to Broadcast</span>
                   </>
                 ) : (
                   <>

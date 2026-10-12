@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { deleteFromB2 } from "@/lib/b2";
 import { invalidateMediaCache } from "@/lib/media";
+import { invalidateCache } from "@/lib/cache";
 
 
 export async function createDeletionRequest({
@@ -165,32 +166,28 @@ export async function executePermanentDeletion(requestId: string) {
     return { error: "Data must be downloaded before permanent deletion." };
   }
 
-  // 1. Fetch complaints media to delete from B2
-  const { data: complaints } = await adminClient
-    .from("complaints")
-    .select("id, image_urls")
-    .in("id", request.complaint_ids);
+  // 1. Fetch media from complaint_media table to delete from B2
+  const { data: mediaFiles } = await adminClient
+    .from("complaint_media")
+    .select("storage_path")
+    .in("complaint_id", request.complaint_ids);
 
-  for (const c of complaints ?? []) {
-    for (const rawUrl of c.image_urls ?? []) {
-      if (!rawUrl) continue;
-      let key = rawUrl;
-      if (rawUrl.includes("?path=")) {
-        key = decodeURIComponent(rawUrl.split("?path=")[1]);
-      } else if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
-        try {
-          const parsed = new URL(rawUrl);
-          key = parsed.pathname.replace(/^\//, "");
-        } catch {}
-      }
-      try {
-        await deleteFromB2(key);
-        await invalidateMediaCache(key);
-      } catch (e) {
-        console.warn(`[permanent-deletion] failed to delete ${key}:`, e);
-      }
+  for (const m of mediaFiles ?? []) {
+    const key = m.storage_path;
+    if (!key) continue;
+    try {
+      await deleteFromB2(key);
+      await invalidateMediaCache(key);
+    } catch (e) {
+      console.warn(`[permanent-deletion] failed to delete ${key}:`, e);
     }
   }
+
+  // Delete rows from complaint_media table
+  await adminClient
+    .from("complaint_media")
+    .delete()
+    .in("complaint_id", request.complaint_ids);
 
   const now = new Date().toISOString();
 
@@ -213,7 +210,87 @@ export async function executePermanentDeletion(requestId: string) {
     })
     .eq("id", requestId);
 
-  revalidatePath("/admin/data-deletion");
+  // 4. Invalidate Redis feed caches
+  if (profile.college_id) {
+    await invalidateCache(
+      `feed:open:${profile.college_id}`,
+      `feed:completed:${profile.college_id}`
+    );
+  }
+
+  // 5. Revalidate Next.js paths
+  revalidatePath("/admin/data-deletion", "page");
+  revalidatePath("/admin/queue", "page");
+  revalidatePath("/dept-admin/queue", "page");
+  revalidatePath("/feed", "page");
+  revalidatePath("/admin", "page");
+  revalidatePath("/", "page");
+
   return { ok: true };
 }
 
+/**
+ * Called after successful Razorpay payment for the data download fee.
+ * Verifies the payment signature server-side and unlocks the download button.
+ */
+export async function verifyDownloadPayment({
+  requestId,
+  orderId,
+  paymentId,
+  signature,
+  transactionId,
+}: {
+  requestId: string;
+  orderId: string;
+  paymentId: string;
+  signature: string;
+  transactionId?: string;
+}): Promise<{ ok?: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const adminClient = createAdminClient();
+
+  // Verify HMAC signature server-side
+  const crypto = await import("crypto");
+  const expectedSig = crypto
+    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
+    .update(`${orderId}|${paymentId}`)
+    .digest("hex");
+
+  if (expectedSig !== signature) {
+    return { error: "Payment signature verification failed." };
+  }
+
+  const { data: profile } = await adminClient
+    .from("profiles")
+    .select("role, college_id")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || profile.role !== "college_admin") return { error: "Unauthorized" };
+
+  // Mark transaction as paid
+  if (transactionId) {
+    await adminClient
+      .from("payment_transactions")
+      .update({ status: "paid", razorpay_payment_id: paymentId })
+      .eq("id", transactionId);
+  }
+
+  // Stamp the deletion request with the payment id to unlock download
+  await adminClient
+    .from("data_deletion_requests")
+    .update({
+      charge_paid: true,
+      charge_payment_id: paymentId,
+      status: "download_ready",
+    })
+    .eq("id", requestId)
+    .eq("college_id", profile.college_id!);
+
+  revalidatePath("/admin/data-deletion", "page");
+  revalidatePath("/admin/data-deletion", "layout");
+  return { ok: true };
+}

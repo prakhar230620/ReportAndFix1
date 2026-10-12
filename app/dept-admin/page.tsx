@@ -13,6 +13,9 @@ import {
 } from "lucide-react";
 import TodaysBroadcasts from "@/app/components/TodaysBroadcasts";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function DeptAdminDashboard() {
   const supabase = await createClient();
   const {
@@ -59,6 +62,7 @@ export default async function DeptAdminDashboard() {
       .from("complaints")
       .select("id, public_id, title, status, priority, created_at, assigned_worker_id, categories(name), locations(name)")
       .eq("assigned_department_id", deptId!)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false }),
     supabase
       .from("profiles")

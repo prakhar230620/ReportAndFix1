@@ -2,6 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Building2, TrendingUp, CheckCircle2, Clock, Users, Tag } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function DeptAnalyticsPage() {
   const supabase = await createClient();
   const {

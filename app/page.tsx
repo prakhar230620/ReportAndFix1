@@ -8,6 +8,7 @@ import PricingSection from "@/app/components/PricingSection";
 import DocumentationSection from "@/app/components/DocumentationSection";
 import ContactForm from "@/app/components/ContactForm";
 import TodaysBroadcasts from "@/app/components/TodaysBroadcasts";
+import ReApplyWorkerBanner from "@/app/components/ReApplyWorkerBanner";
 import {
   QrCode,
   ShieldCheck,
@@ -268,7 +269,8 @@ export default async function HomePage() {
       .from("complaints")
       .select("id", { count: "exact", head: true })
       .eq("college_id", profile.college_id)
-      .neq("status", "completed");
+      .neq("status", "completed")
+      .is("deleted_at", null);
     queuePendingCount = count ?? 0;
   }
 
@@ -278,7 +280,8 @@ export default async function HomePage() {
       .from("complaints")
       .select("id", { count: "exact", head: true })
       .eq("assigned_department_id", profile.department_id)
-      .neq("status", "completed");
+      .neq("status", "completed")
+      .is("deleted_at", null);
     deptPendingCount = count ?? 0;
   }
 
@@ -288,8 +291,23 @@ export default async function HomePage() {
       .from("complaints")
       .select("id", { count: "exact", head: true })
       .eq("assigned_worker_id", user.id)
-      .in("status", ["assigned", "processing"]);
+      .in("status", ["assigned", "processing"])
+      .is("deleted_at", null);
     taskCount = count ?? 0;
+  }
+
+  // Check if this is a plain 'user' who previously had a worker request rejected
+  let hasRejectedWorkerRequest = false;
+  if (profile?.role === "user" && profile?.college_id) {
+    const { data: rejectedReq } = await supabase
+      .from("role_requests")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("requested_role", "worker")
+      .eq("status", "rejected")
+      .limit(1)
+      .maybeSingle();
+    hasRejectedWorkerRequest = !!rejectedReq;
   }
 
   const links: { href: string; label: string; sub: string; badge?: number; icon?: React.ReactNode }[] = [];
@@ -366,11 +384,11 @@ export default async function HomePage() {
             <img
               src={orgLogo}
               alt=""
-              className="h-12 w-12 rounded-xl border border-neutral-200 object-contain p-1 bg-white shadow-xs"
+              className="h-14 w-14 rounded-2xl border border-neutral-200/90 object-contain p-1.5 bg-white shadow-sm"
             />
           ) : (
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-neutral-200 bg-neutral-100 text-neutral-600 shadow-xs">
-              <Building2 className="h-6 w-6" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-neutral-200 bg-neutral-100 text-neutral-600 shadow-sm">
+              <Building2 className="h-7 w-7" />
             </div>
           )}
 
@@ -395,6 +413,9 @@ export default async function HomePage() {
           collegeName={(profile.colleges as any)?.name}
         />
       )}
+
+      {/* Re-apply banner for rejected worker applicants */}
+      {hasRejectedWorkerRequest && <ReApplyWorkerBanner />}
 
       {/* Navigation Directory */}
       <div className="flex flex-col gap-2.5">

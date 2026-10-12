@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { updateDisplayName } from "./actions";
 
 export default function ProfileForm({ initialName }: { initialName: string }) {
+  const router = useRouter();
   const [name, setName] = useState(initialName);
   const [nameStatus, setNameStatus] = useState<string | null>(null);
   const [nameBusy, setNameBusy] = useState(false);
@@ -21,6 +23,9 @@ export default function ProfileForm({ initialName }: { initialName: string }) {
     const result = await updateDisplayName(name);
     setNameBusy(false);
     setNameStatus(result.error ?? "Saved");
+    if (!result.error) {
+      router.refresh();
+    }
   }
 
   async function handlePasswordChange(e: React.FormEvent) {

@@ -39,6 +39,22 @@ export async function createBroadcast(params: CreateBroadcastParams) {
       return { ok: false, error: "No organization associated with this account." };
     }
 
+    // Check plan quota / permission for broadcasting
+    const { data: sub } = await adminClient
+      .from("org_subscriptions")
+      .select("status, plans(broadcasting_enabled, name, slug)")
+      .eq("college_id", collegeId)
+      .in("status", ["active", "trial", "manually_assigned"])
+      .maybeSingle();
+
+    const plan = sub?.plans as any;
+    if (plan && plan.broadcasting_enabled === false) {
+      return {
+        ok: false,
+        error: `Broadcasting is not enabled on your current plan (${plan.name ?? "current plan"}). Please upgrade to a higher tier plan (Professional or Enterprise) in Plans & Billing to broadcast announcements.`,
+      };
+    }
+
     const title = params.title?.trim();
     if (!title) {
       return { ok: false, error: "Broadcast title is required." };

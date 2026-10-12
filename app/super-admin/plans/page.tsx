@@ -6,6 +6,9 @@ import PlanEditor from "@/app/super-admin/plans/PlanEditor";
 
 import { Plus } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function SuperAdminPlansPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -80,6 +83,7 @@ export default async function SuperAdminPlansPage() {
                 <li>Departments: {plan.max_departments === -1 ? "Unlimited" : plan.max_departments}</li>
                 <li>Admins: {plan.max_admins === -1 ? "Unlimited" : plan.max_admins}</li>
                 <li>Messaging: {plan.messaging_enabled ? `Yes (${plan.message_retention_hours}h)` : "No"}</li>
+                <li>Broadcasting: {plan.broadcasting_enabled ? "Yes" : "No"}</li>
                 <li>Free export: {plan.data_download_free ? "Yes" : "No"}</li>
               </ul>
 

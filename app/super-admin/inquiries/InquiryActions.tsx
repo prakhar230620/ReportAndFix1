@@ -1,15 +1,22 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Reply } from "lucide-react";
 import { ButtonSpinner } from "@/app/components/Spinner";
 import { markInquiryRead, replyToInquiry } from "./actions";
 
 export function MarkReadButton({ id }: { id: string }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   return (
     <button
-      onClick={() => startTransition(() => markInquiryRead(id))}
+      onClick={() =>
+        startTransition(async () => {
+          await markInquiryRead(id);
+          router.refresh();
+        })
+      }
       disabled={pending}
       className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition disabled:opacity-50"
     >
@@ -19,6 +26,7 @@ export function MarkReadButton({ id }: { id: string }) {
 }
 
 export function ReplyForm({ id }: { id: string }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [reply, setReply] = useState("");
   const [pending, startTransition] = useTransition();
@@ -34,6 +42,7 @@ export function ReplyForm({ id }: { id: string }) {
       } else {
         setReply("");
         setOpen(false);
+        router.refresh();
       }
     });
   }

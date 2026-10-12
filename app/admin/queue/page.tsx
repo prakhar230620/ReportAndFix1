@@ -43,18 +43,27 @@ export default async function AdminQueuePage({
     "reopened",
   ];
 
-  const [{ data: categories }, { data: locations }, { data: queue }, { data: statusRows }] =
-    await Promise.all([
-      supabase.from("categories").select("id, name").eq("college_id", collegeId).order("name"),
-      supabase.from("locations").select("id, name").eq("college_id", collegeId).order("name"),
-      supabase.rpc("get_admin_queue" as never, {
-        p_college_id: collegeId,
-        p_status: status || null,
-        p_category_id: category || null,
-        p_location_id: location || null,
-      } as never),
-      supabase.from("complaints").select("status").eq("college_id", collegeId!),
-    ]);
+  const [
+    { data: categories },
+    { data: locations },
+    { data: queueRaw },
+    { data: statusRows },
+    { data: deletedRows },
+  ] = await Promise.all([
+    supabase.from("categories").select("id, name").eq("college_id", collegeId).order("name"),
+    supabase.from("locations").select("id, name").eq("college_id", collegeId).order("name"),
+    supabase.rpc("get_admin_queue" as never, {
+      p_college_id: collegeId,
+      p_status: status || null,
+      p_category_id: category || null,
+      p_location_id: location || null,
+    } as never),
+    supabase.from("complaints").select("status").eq("college_id", collegeId!).is("deleted_at", null),
+    supabase.from("complaints").select("id").eq("college_id", collegeId!).not("deleted_at", "is", null),
+  ]);
+
+  const deletedSet = new Set((deletedRows ?? []).map((d: any) => d.id));
+  const queue = (queueRaw as any[] ?? []).filter((item: any) => !deletedSet.has(item.id));
 
   const counts: Record<string, number> = {};
   for (const r of statusRows ?? []) {

@@ -4,6 +4,9 @@ import ShareButton from "@/app/components/ShareButton";
 import BackButton from "@/app/components/BackButton";
 import { getMediaUrl } from "@/lib/media";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function IssueDetailPage({
   params,
 }: {
@@ -21,6 +24,7 @@ export default async function IssueDetailPage({
       "id, public_id, title, description, status, priority, is_anonymous, created_at, completed_at, resolution_seconds, location_id, categories(name), locations(name)"
     )
     .eq("public_id", publicId)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (!complaint) {

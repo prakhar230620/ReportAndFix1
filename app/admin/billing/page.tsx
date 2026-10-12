@@ -18,7 +18,8 @@ import {
 import { formatPrice, getDaysRemaining, planColor, planFeatureLabel, isUnlimited } from "@/lib/plans";
 import PlanUpgradeModal from "@/app/admin/billing/PlanUpgradeModal";
 
-
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function BillingPage() {
   const supabase = await createClient();

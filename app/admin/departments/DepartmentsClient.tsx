@@ -42,20 +42,30 @@ export default function DepartmentsClient({
   availableUsers: AvailableUser[];
 }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const [submitting, setSubmitting] = useState(false);
+  const [isRefreshing, startTransition] = useTransition();
+  const pending = submitting || isRefreshing;
   const [newName, setNewName] = useState("");
   const [feedback, setFeedback] = useState<{ type: "error" | "success"; message: string } | null>(null);
 
-  function run(fn: () => Promise<{ error?: string }>) {
+  async function run(fn: () => Promise<{ error?: string; ok?: boolean }>, successMsg = "Operation completed successfully") {
     setFeedback(null);
-    startTransition(async () => {
+    setSubmitting(true);
+    try {
       const res = await fn();
-      if (res.error) {
+      if (res?.error) {
         setFeedback({ type: "error", message: res.error });
       } else {
-        router.refresh();
+        setFeedback({ type: "success", message: successMsg });
+        startTransition(() => {
+          router.refresh();
+        });
       }
-    });
+    } catch (err: any) {
+      setFeedback({ type: "error", message: err?.message || "An unexpected error occurred." });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const unassigned = workers.filter((w) => !w.department_id);

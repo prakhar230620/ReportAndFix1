@@ -4,6 +4,26 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 
+function revalidateAllComplaintViews(publicId?: string | null, id?: string) {
+  revalidatePath("/admin/queue");
+  revalidatePath("/dept-admin/queue");
+  revalidatePath("/worker");
+  revalidatePath("/feed");
+  revalidatePath("/admin");
+  revalidatePath("/dept-admin");
+  if (publicId) {
+    revalidatePath(`/admin/queue/${publicId}`);
+    revalidatePath(`/dept-admin/queue/${publicId}`);
+    revalidatePath(`/worker/${publicId}`);
+    revalidatePath(`/issues/${publicId}`);
+  }
+  if (id) {
+    revalidatePath(`/admin/queue/${id}`);
+    revalidatePath(`/dept-admin/queue/${id}`);
+    revalidatePath(`/worker/${id}`);
+  }
+}
+
 export async function assignComplaint(
   complaintId: string,
   workerId: string | null,
@@ -52,7 +72,7 @@ export async function assignComplaint(
   // Fetch current complaint to perform valid state transition
   const { data: currentComplaint } = await adminClient
     .from("complaints")
-    .select("status, assigned_department_id")
+    .select("public_id, status, assigned_department_id")
     .eq("id", complaintId)
     .single();
 
@@ -116,10 +136,7 @@ export async function assignComplaint(
     metadata: { worker_id: workerId || null, department_id: resolvedDeptId },
   });
 
-  revalidatePath("/admin/queue");
-  revalidatePath(`/admin/queue/${complaintId}`);
-  revalidatePath("/dept-admin/queue");
-  revalidatePath(`/dept-admin/queue/${complaintId}`);
+  revalidateAllComplaintViews(currentComplaint?.public_id, complaintId);
   return { ok: true };
 }
 
@@ -133,30 +150,46 @@ export async function unassignComplaint(complaintId: string) {
   const adminClient = createAdminClient();
   const { data: complaint } = await adminClient
     .from("complaints")
-    .select("college_id, status")
+    .select("college_id, status, public_id")
     .eq("id", complaintId)
     .single();
 
-  const { error } = await adminClient
+  const previousStatus = complaint?.status ?? "assigned";
+
+  // Try updating with status: "submitted" so complaint returns to unassigned queue
+  let { error } = await adminClient
     .from("complaints")
     .update({
       assigned_worker_id: null,
       assigned_department_id: null,
       assigned_by: null,
       assigned_at: null,
-      // NOTE: Do NOT reset status here — DB trigger blocks backward transitions.
-      // The complaint stays at its current status (e.g. 'assigned') after unassigning.
+      status: "submitted",
     })
     .eq("id", complaintId);
+
+  // Fallback: If DB trigger hasn't been upgraded in Supabase yet, clear assignments
+  if (error && error.message?.includes("Invalid complaint status transition")) {
+    const fallbackRes = await adminClient
+      .from("complaints")
+      .update({
+        assigned_worker_id: null,
+        assigned_department_id: null,
+        assigned_by: null,
+        assigned_at: null,
+      })
+      .eq("id", complaintId);
+    error = fallbackRes.error;
+  }
 
   if (error) return { error: error.message };
 
   await adminClient.from("complaint_status_history").insert({
     complaint_id: complaintId,
-    previous_status: complaint?.status ?? "assigned",
-    new_status: complaint?.status ?? "assigned",
+    previous_status: previousStatus,
+    new_status: "submitted",
     actor_id: user.id,
-    note: "Unassigned by admin (worker/dept cleared, status retained)",
+    note: "Unassigned by admin (returned to unassigned queue)",
   });
 
   await adminClient.from("audit_log").insert({
@@ -168,10 +201,7 @@ export async function unassignComplaint(complaintId: string) {
     metadata: {},
   });
 
-  revalidatePath("/admin/queue");
-  revalidatePath(`/admin/queue/${complaintId}`);
-  revalidatePath("/dept-admin/queue");
-  revalidatePath(`/dept-admin/queue/${complaintId}`);
+  revalidateAllComplaintViews(complaint?.public_id, complaintId);
   return { ok: true };
 }
 
@@ -186,7 +216,7 @@ export async function deptAdminVerifyComplaint(complaintId: string) {
   const adminClient = createAdminClient();
   const { data: complaint, error: fetchError } = await adminClient
     .from("complaints")
-    .select("college_id, status, assigned_department_id")
+    .select("college_id, status, assigned_department_id, public_id")
     .eq("id", complaintId)
     .single();
 
@@ -210,10 +240,7 @@ export async function deptAdminVerifyComplaint(complaintId: string) {
     metadata: { department_id: complaint.assigned_department_id },
   });
 
-  revalidatePath("/admin/queue");
-  revalidatePath(`/admin/queue/${complaintId}`);
-  revalidatePath("/dept-admin/queue");
-  revalidatePath(`/dept-admin/queue/${complaintId}`);
+  revalidateAllComplaintViews(complaint.public_id, complaintId);
   return { ok: true };
 }
 
@@ -230,7 +257,7 @@ export async function deptAdminReopenComplaint(complaintId: string, comment: str
   const adminClient = createAdminClient();
   const { data: complaint, error: fetchError } = await adminClient
     .from("complaints")
-    .select("college_id, status")
+    .select("college_id, status, public_id")
     .eq("id", complaintId)
     .single();
 
@@ -260,10 +287,7 @@ export async function deptAdminReopenComplaint(complaintId: string, comment: str
     metadata: { comment: comment.trim() },
   });
 
-  revalidatePath("/admin/queue");
-  revalidatePath(`/admin/queue/${complaintId}`);
-  revalidatePath("/dept-admin/queue");
-  revalidatePath(`/dept-admin/queue/${complaintId}`);
+  revalidateAllComplaintViews(complaint.public_id, complaintId);
   return { ok: true };
 }
 
@@ -277,7 +301,7 @@ export async function approveComplaint(complaintId: string) {
 
   const { data: complaint, error: fetchError } = await supabase
     .from("complaints")
-    .select("college_id, status, created_at")
+    .select("college_id, status, created_at, public_id")
     .eq("id", complaintId)
     .single();
   if (fetchError || !complaint) return { error: "Complaint not found" };
@@ -315,9 +339,7 @@ export async function approveComplaint(complaintId: string) {
     metadata: { resolution_seconds: resolutionSeconds },
   });
 
-  revalidatePath("/admin/queue");
-  revalidatePath(`/admin/queue/${complaintId}`);
-  revalidatePath("/dept-admin/queue");
+  revalidateAllComplaintViews(complaint.public_id, complaintId);
   return { ok: true };
 }
 
@@ -333,7 +355,7 @@ export async function reopenComplaint(complaintId: string, comment: string) {
 
   const { data: complaint, error: fetchError } = await supabase
     .from("complaints")
-    .select("college_id, status")
+    .select("college_id, status, public_id")
     .eq("id", complaintId)
     .single();
   if (fetchError || !complaint) return { error: "Complaint not found" };
@@ -362,8 +384,6 @@ export async function reopenComplaint(complaintId: string, comment: string) {
     metadata: { comment: comment.trim() },
   });
 
-  revalidatePath("/admin/queue");
-  revalidatePath(`/admin/queue/${complaintId}`);
-  revalidatePath("/dept-admin/queue");
+  revalidateAllComplaintViews(complaint.public_id, complaintId);
   return { ok: true };
 }

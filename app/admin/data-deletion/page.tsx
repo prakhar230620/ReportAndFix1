@@ -3,11 +3,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import { AlertTriangle, Download, CheckCircle2, Clock, Trash2 } from "lucide-react";
 import DataDeletionForm from "@/app/admin/data-deletion/DataDeletionForm";
-import ExecuteDeletionButton from "@/app/admin/data-deletion/ExecuteDeletionButton";
+import DownloadPaymentSection from "@/app/admin/data-deletion/DownloadPaymentSection";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function DataDeletionPage() {
   const supabase = await createClient();
+
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
@@ -118,20 +121,16 @@ export default async function DataDeletionPage() {
           )}
 
           {(activeDeletionRequest.status === "download_ready" || activeDeletionRequest.status === "pending_download") && (
-            <div className="mt-4 flex flex-col gap-3">
-              <a
-                href={`/api/data-deletion/download?requestId=${activeDeletionRequest.id}`}
-                className="inline-flex items-center gap-2 rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-800 w-fit"
-              >
-                <Download className="h-4 w-4" />
-                Download Data Archive (ZIP + PDF)
-              </a>
-
-              <ExecuteDeletionButton
-                requestId={activeDeletionRequest.id}
-                complaintCount={activeDeletionRequest.complaint_count}
-              />
-            </div>
+            <DownloadPaymentSection
+              requestId={activeDeletionRequest.id}
+              collegeId={collegeId}
+              complaintCount={activeDeletionRequest.complaint_count}
+              downloadFree={downloadFree}
+              downloadChargePaise={downloadChargePaise}
+              isPaid={activeDeletionRequest.charge_paid === true || !!activeDeletionRequest.charge_payment_id}
+              paymentId={activeDeletionRequest.charge_payment_id}
+              userEmail={user.email}
+            />
           )}
         </div>
 

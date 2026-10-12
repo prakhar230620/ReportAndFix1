@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Toggle from "@/app/components/Toggle";
 import { ButtonSpinner } from "@/app/components/Spinner";
 import {
@@ -34,13 +35,18 @@ export default function RoleRequestsClient({
   myApprovedIds: string[];
   departments: Department[];
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [allowWorker, setAllowWorker] = useState(college.allow_worker_signup);
 
   function handle(fn: () => Promise<{ error?: string; ok?: boolean }>) {
     startTransition(async () => {
       const result = await fn();
-      if (result.error) alert(result.error);
+      if (result.error) {
+        alert(result.error);
+      } else {
+        router.refresh();
+      }
     });
   }
 

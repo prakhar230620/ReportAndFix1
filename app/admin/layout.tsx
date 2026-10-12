@@ -50,7 +50,8 @@ export default async function AdminLayout({
       .from("complaints")
       .select("id", { count: "exact", head: true })
       .eq("college_id", profile.college_id)
-      .neq("status", "completed");
+      .neq("status", "completed")
+      .is("deleted_at", null);
     queuePendingCount = count ?? 0;
   }
 

@@ -3,8 +3,26 @@
 import { useEffect, useState } from "react";
 import { Clock, CheckCircle2, AlertTriangle, Flame, ArrowUpCircle } from "lucide-react";
 
-export function StatusBadge({ status }: { status: string }) {
-  const normalized = (status || "").toLowerCase();
+export function StatusBadge({
+  status,
+  assignedWorkerId,
+  assignedDepartmentId,
+}: {
+  status: string;
+  assignedWorkerId?: string | null;
+  assignedDepartmentId?: string | null;
+}) {
+  let normalized = (status || "").toLowerCase();
+
+  // If a complaint has status "assigned" but neither worker nor department is assigned,
+  // it is in an unassigned state.
+  if (
+    normalized === "assigned" &&
+    assignedWorkerId === null &&
+    assignedDepartmentId === null
+  ) {
+    normalized = "unassigned";
+  }
 
   switch (normalized) {
     case "submitted":
@@ -12,6 +30,13 @@ export function StatusBadge({ status }: { status: string }) {
         <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
           <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
           Submitted
+        </span>
+      );
+    case "unassigned":
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+          Unassigned
         </span>
       );
     case "assigned":

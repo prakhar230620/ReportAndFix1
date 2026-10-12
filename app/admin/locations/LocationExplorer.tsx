@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ButtonSpinner } from "@/app/components/Spinner";
 import {
@@ -158,11 +159,17 @@ export default function LocationExplorer({
     });
   }
 
+  const router = useRouter();
+
   function run(fn: () => Promise<{ error?: string }>, onOk?: () => void) {
     startTransition(async () => {
       const res = await fn();
-      if (res.error) alert(res.error);
-      else onOk?.();
+      if (res.error) {
+        alert(res.error);
+      } else {
+        onOk?.();
+        router.refresh();
+      }
     });
   }
 

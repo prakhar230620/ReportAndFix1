@@ -78,7 +78,8 @@ export default async function DeptAdminLayout({
       .from("complaints")
       .select("id", { count: "exact", head: true })
       .eq("assigned_department_id", profile.department_id)
-      .neq("status", "completed");
+      .neq("status", "completed")
+      .is("deleted_at", null);
     queuePendingCount = count ?? 0;
   } else if (profile.college_id) {
     // If org admin is previewing dept admin panel
@@ -86,7 +87,8 @@ export default async function DeptAdminLayout({
       .from("complaints")
       .select("id", { count: "exact", head: true })
       .eq("college_id", profile.college_id)
-      .neq("status", "completed");
+      .neq("status", "completed")
+      .is("deleted_at", null);
     queuePendingCount = count ?? 0;
   }
 

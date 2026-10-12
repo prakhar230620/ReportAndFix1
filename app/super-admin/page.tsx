@@ -3,6 +3,9 @@ import { purgeExpiredColleges } from "./actions";
 import SuperAdminDashboard from "./SuperAdminDashboard";
 import { Organization } from "./CollegeRow";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function SuperAdminPage() {
   const supabase = await createClient();
 

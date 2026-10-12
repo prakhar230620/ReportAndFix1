@@ -21,6 +21,7 @@ type Plan = {
   max_admins: number;
   data_download_free: boolean;
   messaging_enabled: boolean;
+  broadcasting_enabled?: boolean;
   message_retention_hours: number;
   features: string[];
   is_active: boolean;
@@ -30,8 +31,8 @@ type Plan = {
 const defaultPlan: Plan = {
   name: "", slug: "", description: "", price_monthly_paise: 0, price_yearly_paise: 0,
   max_storage_gb: 5, max_complaints_per_month: 100, max_workers: 10, max_departments: 5,
-  max_admins: 1, data_download_free: false, messaging_enabled: false, message_retention_hours: 24,
-  features: [], is_active: true, sort_order: 0,
+  max_admins: 1, data_download_free: false, messaging_enabled: false, broadcasting_enabled: false,
+  message_retention_hours: 24, features: [], is_active: true, sort_order: 0,
 };
 
 export default function PlanEditor({ mode, plan }: { mode: "create" | "edit"; plan?: Plan }) {
@@ -122,13 +123,23 @@ export default function PlanEditor({ mode, plan }: { mode: "create" | "edit"; pl
                 ))}
               </div>
 
-              <div className="flex gap-6">
-                {(["data_download_free","messaging_enabled","is_active"] as const).map(k => (
-                  <label key={k} className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={form[k] as boolean} onChange={e => set(k, e.target.checked)} className="h-4 w-4 rounded" />
-                    {k.replace(/_/g," ")}
-                  </label>
-                ))}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <label className="flex items-center gap-2 text-xs font-medium text-neutral-700">
+                  <input type="checkbox" checked={form.data_download_free} onChange={e => set("data_download_free", e.target.checked)} className="h-4 w-4 rounded text-blue-600" />
+                  Free Data Export
+                </label>
+                <label className="flex items-center gap-2 text-xs font-medium text-neutral-700">
+                  <input type="checkbox" checked={form.messaging_enabled} onChange={e => set("messaging_enabled", e.target.checked)} className="h-4 w-4 rounded text-blue-600" />
+                  Messaging Enabled
+                </label>
+                <label className="flex items-center gap-2 text-xs font-medium text-neutral-700">
+                  <input type="checkbox" checked={form.broadcasting_enabled ?? false} onChange={e => set("broadcasting_enabled", e.target.checked)} className="h-4 w-4 rounded text-blue-600" />
+                  Broadcasting (Announcements)
+                </label>
+                <label className="flex items-center gap-2 text-xs font-medium text-neutral-700">
+                  <input type="checkbox" checked={form.is_active} onChange={e => set("is_active", e.target.checked)} className="h-4 w-4 rounded text-blue-600" />
+                  Active Plan
+                </label>
               </div>
 
               <div>

@@ -10,6 +10,7 @@ export async function savePlan(plan: {
   max_storage_gb: number; max_complaints_per_month: number;
   max_workers: number; max_departments: number; max_admins: number;
   data_download_free: boolean; messaging_enabled: boolean;
+  broadcasting_enabled?: boolean;
   message_retention_hours: number; features: string[];
   is_active: boolean; sort_order: number;
 }) {
@@ -28,6 +29,7 @@ export async function savePlan(plan: {
       max_storage_gb: plan.max_storage_gb, max_complaints_per_month: plan.max_complaints_per_month,
       max_workers: plan.max_workers, max_departments: plan.max_departments, max_admins: plan.max_admins,
       data_download_free: plan.data_download_free, messaging_enabled: plan.messaging_enabled,
+      broadcasting_enabled: plan.broadcasting_enabled ?? false,
       message_retention_hours: plan.message_retention_hours,
       features: plan.features, is_active: plan.is_active, sort_order: plan.sort_order,
     }).eq("id", plan.id);
@@ -39,6 +41,7 @@ export async function savePlan(plan: {
       max_storage_gb: plan.max_storage_gb, max_complaints_per_month: plan.max_complaints_per_month,
       max_workers: plan.max_workers, max_departments: plan.max_departments, max_admins: plan.max_admins,
       data_download_free: plan.data_download_free, messaging_enabled: plan.messaging_enabled,
+      broadcasting_enabled: plan.broadcasting_enabled ?? false,
       message_retention_hours: plan.message_retention_hours,
       features: plan.features, is_active: plan.is_active, sort_order: plan.sort_order,
     });

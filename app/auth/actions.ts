@@ -149,3 +149,53 @@ export async function logout() {
   revalidatePath("/", "layout");
   redirect("/login");
 }
+
+/**
+ * Allows a user whose worker role_request was previously rejected to submit
+ * a fresh pending request. The user keeps their current 'user' role until approved.
+ */
+export async function reApplyForWorker(): Promise<{ ok?: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, college_id")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile?.college_id) return { error: "No organisation found on your profile." };
+  if (profile.role !== "user") return { error: "Only regular users can re-apply for a worker role." };
+
+  // Check there is an existing rejected worker request for this user
+  const { data: existing } = await supabase
+    .from("role_requests")
+    .select("id, status")
+    .eq("user_id", user.id)
+    .eq("requested_role", "worker")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!existing) return { error: "No previous worker application found." };
+  if (existing.status === "pending") return { error: "You already have a pending worker request." };
+  if (existing.status === "approved") return { error: "Your request was already approved." };
+  // Only allow if status is 'rejected'
+  if (existing.status !== "rejected") return { error: "No rejected request to re-apply from." };
+
+  // Insert a new pending request
+  const { error: insertErr } = await supabase.from("role_requests").insert({
+    user_id: user.id,
+    college_id: profile.college_id,
+    requested_role: "worker",
+    status: "pending",
+  });
+
+  if (insertErr) return { error: insertErr.message };
+
+  revalidatePath("/");
+  return { ok: true };
+}

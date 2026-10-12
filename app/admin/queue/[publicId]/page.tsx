@@ -45,6 +45,7 @@ export default async function AdminComplaintDetailPage({
     )
     .eq("public_id", publicId)
     .eq("college_id", collegeId)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (!complaint) {

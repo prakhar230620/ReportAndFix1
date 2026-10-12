@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 
 import QrSheetClient from "./QrSheetClient";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function QrSheetPage() {
   const supabase = await createClient();
 

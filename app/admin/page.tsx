@@ -20,6 +20,8 @@ import {
 import JoinCodeCard from "./JoinCodeCard";
 import TodaysBroadcasts from "@/app/components/TodaysBroadcasts";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();

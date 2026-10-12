@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ButtonSpinner } from "@/app/components/Spinner";
 import { deptAdminVerifyComplaint, deptAdminReopenComplaint } from "@/app/admin/queue/actions";
 import { CheckCircle2, RotateCcw, AlertTriangle } from "lucide-react";
@@ -12,6 +13,7 @@ export default function DeptVerifyActions({
   complaintId: string;
   isAlreadyDeptVerified: boolean;
 }) {
+  const router = useRouter();
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -26,6 +28,7 @@ export default function DeptVerifyActions({
         setError(res.error);
       } else {
         setSuccess("Work verified successfully! Forwarded to Organisation Admin for final double-check sign-off.");
+        router.refresh();
       }
     });
   }
@@ -44,6 +47,7 @@ export default function DeptVerifyActions({
       } else {
         setSuccess("Complaint reopened and sent back to worker with feedback.");
         setComment("");
+        router.refresh();
       }
     });
   }

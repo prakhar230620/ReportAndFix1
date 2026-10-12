@@ -7,6 +7,8 @@ import { cached } from "@/lib/cache";
 import { getMediaUrl } from "@/lib/media";
 
 export const maxDuration = 30;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 function formatDuration(seconds: number | null) {
   if (!seconds) return "—";
@@ -71,13 +73,27 @@ export default async function FeedPage({
       const { data } = await supabase.rpc("get_today_open_issues" as never, {
         p_college_id: collegeId,
       } as never);
-      return data;
+      if (!data || !Array.isArray(data)) return [];
+      const { data: deletedList } = await supabase
+        .from("complaints")
+        .select("id")
+        .eq("college_id", collegeId)
+        .not("deleted_at", "is", null);
+      const deletedSet = new Set((deletedList ?? []).map((d: any) => d.id));
+      return (data as any[]).filter((issue: any) => !deletedSet.has(issue.id));
     }).then((data) => ({ data })),
     cached(`feed:completed:${collegeId}`, 30, async () => {
       const { data } = await supabase.rpc("get_completed_issues" as never, {
         p_college_id: collegeId,
       } as never);
-      return data;
+      if (!data || !Array.isArray(data)) return [];
+      const { data: deletedList } = await supabase
+        .from("complaints")
+        .select("id")
+        .eq("college_id", collegeId)
+        .not("deleted_at", "is", null);
+      const deletedSet = new Set((deletedList ?? []).map((d: any) => d.id));
+      return (data as any[]).filter((issue: any) => !deletedSet.has(issue.id));
     }).then((data) => ({ data })),
     user
       ? supabase.from("complaint_votes").select("complaint_id").eq("user_id", user.id)

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ButtonSpinner } from "@/app/components/Spinner";
 import { approveComplaint, reopenComplaint } from "./actions";
 import { CheckCircle2, AlertTriangle, ShieldCheck, Clock } from "lucide-react";
@@ -16,6 +17,7 @@ export default function VerifyActions({
   hasDepartment?: boolean;
   departmentName?: string | null;
 }) {
+  const router = useRouter();
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -24,7 +26,11 @@ export default function VerifyActions({
     startTransition(async () => {
       setError(null);
       const result = await approveComplaint(complaintId);
-      if (result.error) setError(result.error);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        router.refresh();
+      }
     });
   }
 
@@ -32,7 +38,12 @@ export default function VerifyActions({
     startTransition(async () => {
       setError(null);
       const result = await reopenComplaint(complaintId, comment);
-      if (result.error) setError(result.error);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setComment("");
+        router.refresh();
+      }
     });
   }
 

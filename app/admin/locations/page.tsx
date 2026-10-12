@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 
 import LocationExplorer from "./LocationExplorer";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function LocationsPage() {
   const supabase = await createClient();
 
@@ -44,7 +47,8 @@ export default async function LocationsPage() {
   const { data: complaintCounts } = await supabase
     .from("complaints")
     .select("location_id")
-    .eq("college_id", collegeId!);
+    .eq("college_id", collegeId!)
+    .is("deleted_at", null);
 
   const counts: Record<string, number> = {};
   for (const c of complaintCounts ?? []) {

@@ -5,6 +5,9 @@ import Link from "next/link";
 import { roleLabel } from "@/lib/roleLabel";
 import ProfileForm from "./ProfileForm";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function ProfilePage() {
   const supabase = await createClient();
   const {

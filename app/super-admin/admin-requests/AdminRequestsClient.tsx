@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Toggle from "@/app/components/Toggle";
 import { ButtonSpinner } from "@/app/components/Spinner";
 import { approveAdmin, rejectAdminRequest, toggleAdminSignup } from "./actions";
@@ -26,6 +27,7 @@ export default function AdminRequestsClient({
   adminCounts: Record<string, number>;
   colleges: College[];
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [allowAdmin, setAllowAdmin] = useState<Record<string, boolean>>(
     () => Object.fromEntries(colleges.map((c) => [c.id, c.allow_admin_signup]))
@@ -34,7 +36,11 @@ export default function AdminRequestsClient({
   function handle(fn: () => Promise<{ error?: string; ok?: boolean }>) {
     startTransition(async () => {
       const result = await fn();
-      if (result.error) alert(result.error);
+      if (result.error) {
+        alert(result.error);
+      } else {
+        router.refresh();
+      }
     });
   }
 

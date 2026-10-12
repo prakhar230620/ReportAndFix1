@@ -1,5 +1,5 @@
 // ReportAndFix Progressive Web App Service Worker
-const CACHE_NAME = 'reportandfix-v1';
+const CACHE_NAME = 'reportandfix-v2';
 const STATIC_ASSETS = [
   '/',
   '/offline',

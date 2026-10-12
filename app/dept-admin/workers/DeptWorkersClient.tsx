@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   Users, Briefcase, CheckCircle2, Ban, UserCheck, UserX,
   Building2, ChevronDown, ChevronUp,
@@ -51,12 +52,17 @@ export default function DeptWorkersClient({
   myDeptId: string | null;
   myDeptName: string | null;
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   function run(fn: () => Promise<{ error?: string }>) {
     startTransition(async () => {
       const res = await fn();
-      if (res.error) alert(res.error);
+      if (res.error) {
+        alert(res.error);
+      } else {
+        router.refresh();
+      }
     });
   }
 

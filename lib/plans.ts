@@ -15,6 +15,7 @@ export type Plan = {
   max_admins: number;
   data_download_free: boolean;
   messaging_enabled: boolean;
+  broadcasting_enabled?: boolean;
   message_retention_hours: number;
   features: string[];
   sort_order: number;
@@ -70,6 +71,10 @@ export function isExpiryWarning(periodEnd: string): boolean {
 /** Plan feature gating */
 export function canUseMessaging(plan: Plan | null | undefined): boolean {
   return plan?.messaging_enabled ?? false;
+}
+
+export function canUseBroadcasting(plan: Plan | null | undefined): boolean {
+  return plan?.broadcasting_enabled ?? false;
 }
 
 export function canDownloadFree(plan: Plan | null | undefined): boolean {

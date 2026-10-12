@@ -37,6 +37,14 @@ export async function startProcessing(complaintId: string) {
 
   revalidatePath(`/worker/${complaint.public_id}`);
   revalidatePath(`/worker`);
+  revalidatePath("/admin/queue");
+  revalidatePath(`/admin/queue/${complaint.public_id}`);
+  revalidatePath("/dept-admin/queue");
+  revalidatePath(`/dept-admin/queue/${complaint.public_id}`);
+  revalidatePath(`/issues/${complaint.public_id}`);
+  revalidatePath("/feed");
+  revalidatePath("/admin");
+  revalidatePath("/dept-admin");
   return { ok: true, status: "processing" };
 }
 
@@ -49,6 +57,12 @@ export async function addProgressUpdate(complaintId: string, note: string) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
+  const { data: complaint } = await supabase
+    .from("complaints")
+    .select("public_id")
+    .eq("id", complaintId)
+    .single();
+
   const { error } = await supabase.from("complaint_progress_updates").insert({
     complaint_id: complaintId,
     worker_id: user.id,
@@ -56,6 +70,13 @@ export async function addProgressUpdate(complaintId: string, note: string) {
   });
 
   if (error) return { error: error.message };
+
+  if (complaint?.public_id) {
+    revalidatePath(`/worker/${complaint.public_id}`);
+    revalidatePath(`/admin/queue/${complaint.public_id}`);
+    revalidatePath(`/dept-admin/queue/${complaint.public_id}`);
+    revalidatePath(`/issues/${complaint.public_id}`);
+  }
   return { ok: true };
 }
 
@@ -101,5 +122,13 @@ export async function finishTask(complaintId: string, finalNote: string) {
 
   revalidatePath(`/worker/${complaint.public_id}`);
   revalidatePath(`/worker`);
+  revalidatePath("/admin/queue");
+  revalidatePath(`/admin/queue/${complaint.public_id}`);
+  revalidatePath("/dept-admin/queue");
+  revalidatePath(`/dept-admin/queue/${complaint.public_id}`);
+  revalidatePath(`/issues/${complaint.public_id}`);
+  revalidatePath("/feed");
+  revalidatePath("/admin");
+  revalidatePath("/dept-admin");
   return { ok: true, status: "waiting_for_verification" };
 }

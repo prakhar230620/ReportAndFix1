@@ -1,7 +1,10 @@
-﻿import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import DeptWorkersClient from "./DeptWorkersClient";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function DeptWorkersPage() {
   const supabase = await createClient();

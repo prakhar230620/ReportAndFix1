@@ -60,7 +60,8 @@ export default async function DeptAdminComplaintDetailPage({
     .select(
       "id, public_id, title, description, status, priority, is_anonymous, created_at, completed_at, resolution_seconds, assigned_worker_id, assigned_department_id, location_id, categories(name), locations(name)"
     )
-    .eq("public_id", publicId);
+    .eq("public_id", publicId)
+    .is("deleted_at", null);
 
   // If dept_admin, restrict to their department (or allow org admins to supervise)
   if (profile.role === "dept_admin" && deptId) {
