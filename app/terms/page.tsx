@@ -1,7 +1,7 @@
 import Link from "next/link";
 import BrandLogo from "@/app/components/BrandLogo";
 import BackButton from "@/app/components/BackButton";
-import { Shield, FileText, CheckCircle2, Clock, Trash2, KeyRound } from "lucide-react";
+import { Shield, FileText, CheckCircle2, Clock, Trash2, KeyRound, AlertOctagon } from "lucide-react";
 
 export default function TermsPage() {
   return (
@@ -84,10 +84,39 @@ export default function TermsPage() {
             </ul>
           </section>
 
+          <section id="cancellation-refund" className="border-t border-neutral-100 pt-6 scroll-mt-20">
+            <h2 className="text-lg font-bold text-neutral-900 mb-2 flex items-center gap-2">
+              <AlertOctagon className="h-5 w-5 text-rose-600" />
+              4. Subscription Cancellation & Refund Policy (Strict Non-Refundable Terms)
+            </h2>
+            <p className="font-medium text-neutral-800">
+              Please read our subscription and refund terms carefully before subscribing to any plan:
+            </p>
+            <ul className="mt-3 space-y-2.5 list-disc list-inside text-xs text-neutral-600">
+              <li>
+                <strong>No Mid-Term Cancellation Facility:</strong> ReportAndFix does not provide facilities for mid-cycle plan cancellations. Once a subscription (monthly or annual) is purchased or renewed, it remains active for its full committed term.
+              </li>
+              <li>
+                <strong>Mandatory Plan Utilization:</strong> The subscribing organisation must continue and run the subscribed plan for the entire duration of the active cycle. All features, quotas (complaints, technicians, departments), and administrative tools remain fully operational until the official period end date.
+              </li>
+              <li>
+                <strong>Strict No-Refund Policy:</strong> If an organisation voluntarily stops utilizing the service, deletes its account, or chooses not to use the platform during an active cycle, <strong>no refunds or prorated credits will be provided</strong> under any circumstance.
+              </li>
+              <li>
+                <strong>Refunds Exclusively for Technical Payment Failures:</strong> Refunds will be granted <em>strictly and solely</em> in cases of genuine payment failures, specifically:
+                <ul className="ml-6 mt-1.5 space-y-1 list-circle text-[11px] text-neutral-600">
+                  <li>Payment was debited from your bank account, card, or UPI, but the transaction timed out or failed to credit, leaving the plan unactivated.</li>
+                  <li>An erroneous duplicate charge occurred for the identical billing cycle due to gateway network delays.</li>
+                </ul>
+                In these technical failure scenarios, the deducted amount will be processed back to the original source account within 5–7 banking days.
+              </li>
+            </ul>
+          </section>
+
           <section id="data-deletion" className="border-t border-neutral-100 pt-6 scroll-mt-20">
             <h2 className="text-lg font-bold text-neutral-900 mb-2 flex items-center gap-2">
               <Trash2 className="h-5 w-5 text-red-600" />
-              4. Data Deletion, Mandatory Backup, & Retention
+              5. Data Deletion, Mandatory Backup, & Retention
             </h2>
             <p>
               Organisation administrators may initiate permanent data deletion subject to the following strict safety protocols:
@@ -111,7 +140,7 @@ export default function TermsPage() {
           <section className="border-t border-neutral-100 pt-6">
             <h2 className="text-lg font-bold text-neutral-900 mb-2 flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              5. Staff In-App Messaging & 24h Pruning
+              6. Staff In-App Messaging & 24h Pruning
             </h2>
             <p>
               In-app messaging is available exclusively on qualified tiers for authenticated Organisation Admins,

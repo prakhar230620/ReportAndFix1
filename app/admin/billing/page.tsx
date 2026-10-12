@@ -14,6 +14,8 @@ import {
   MessageSquare,
   HardDrive,
   Users,
+  ShieldAlert,
+  Info,
 } from "lucide-react";
 import { formatPrice, getDaysRemaining, planColor, planFeatureLabel, isUnlimited } from "@/lib/plans";
 import PlanUpgradeModal from "@/app/admin/billing/PlanUpgradeModal";
@@ -156,7 +158,7 @@ export default async function BillingPage() {
           </div>
         )}
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <PlanUpgradeModal
             currentPlanSlug={currentPlan?.slug}
             plans={allPlans ?? []}
@@ -164,14 +166,28 @@ export default async function BillingPage() {
             billingCycle={subscription?.billing_cycle ?? "monthly"}
           />
           {subscription && (
-            <a
+            <Link
               href="/admin/billing/cancel"
-              className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3.5 py-2 text-xs sm:text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
             >
-              Cancel Plan
-            </a>
+              <ShieldAlert className="h-4 w-4 text-neutral-500" />
+              Cancellation & Refund Policy
+            </Link>
           )}
         </div>
+
+        {subscription && (
+          <div className="mt-3.5 rounded-xl border border-neutral-200/80 bg-neutral-50 p-3 text-xs text-neutral-600 flex items-start gap-2.5">
+            <Info className="h-4 w-4 text-neutral-500 shrink-0 mt-0.5" />
+            <div className="leading-relaxed">
+              <span className="font-semibold text-neutral-900">Fixed-Term Plan Notice:</span> ReportAndFix plans are non-cancellable mid-cycle and strictly non-refundable. Your organisation retains complete feature quotas until{" "}
+              <span className="font-semibold text-neutral-800">
+                {new Date(subscription.current_period_end).toLocaleDateString()}
+              </span>
+              . Refunds are entertained strictly in verified cases of technical payment gateway failure.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Usage Meters */}
