@@ -25,7 +25,10 @@ export type OrgAnalytics = {
   plan_max_workers?: number;
   plan_messaging_enabled?: boolean;
   plan_data_download_free?: boolean;
+  current_period_start?: string | null;
   current_period_end?: string | null;
+  billing_cycle?: string | null;
+  auto_renew?: boolean | null;
   complaints_monthly_count?: number;
   complaints_usage_pct?: number;
   storage_usage_pct?: number;
@@ -83,6 +86,44 @@ function formatDuration(seconds: number | null) {
   if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
   const hrs = (seconds / 3600).toFixed(1);
   return `${hrs} hrs`;
+}
+
+function getRemainingTime(dateStr?: string | null) {
+  if (!dateStr) {
+    return {
+      label: "No expiry / Unlimited",
+      isExpired: false,
+      days: null,
+      badgeClass: "bg-neutral-100 text-neutral-600 border-neutral-200",
+    };
+  }
+  const target = new Date(dateStr).getTime();
+  const now = Date.now();
+  const diffMs = target - now;
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  if (diffMs <= 0) {
+    const expiredDaysAgo = Math.abs(diffDays);
+    return {
+      label: expiredDaysAgo === 0 ? "Expired today" : `Expired ${expiredDaysAgo}d ago`,
+      isExpired: true,
+      days: diffDays,
+      badgeClass: "bg-red-50 text-red-700 border-red-200",
+    };
+  }
+  if (diffDays <= 3) {
+    return {
+      label: `${diffDays} ${diffDays === 1 ? "day" : "days"} left`,
+      isExpired: false,
+      days: diffDays,
+      badgeClass: "bg-amber-50 text-amber-700 border-amber-200",
+    };
+  }
+  return {
+    label: `${diffDays} days left`,
+    isExpired: false,
+    days: diffDays,
+    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  };
 }
 
 export default function AnalyticsDashboardClient({
@@ -473,11 +514,35 @@ export default function AnalyticsDashboardClient({
 
                     {/* Plan & Quotas */}
                     <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="rounded bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 uppercase">
                           {org.plan_name ?? "Starter"}
                         </span>
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                            org.status === "active"
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                              : org.status === "trialing"
+                              ? "bg-amber-50 border-amber-200 text-amber-700"
+                              : "bg-red-50 border-red-200 text-red-700"
+                          }`}
+                        >
+                          {org.status}
+                        </span>
                       </div>
+                      {(() => {
+                        const remaining = getRemainingTime(org.current_period_end);
+                        return (
+                          <div className="mt-1 flex items-center">
+                            <span
+                              className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium ${remaining.badgeClass}`}
+                              title={org.current_period_end ? `Expires: ${new Date(org.current_period_end).toLocaleDateString()}` : undefined}
+                            >
+                              ⏳ {remaining.label}
+                            </span>
+                          </div>
+                        );
+                      })()}
                       <div className="mt-1 flex flex-col gap-0.5 text-[11px] text-neutral-600">
                         <div>
                           📋 Issues: <strong className="text-neutral-900">{org.total_issues}</strong> / {org.plan_max_complaints_per_month === -1 ? "∞" : org.plan_max_complaints_per_month}
@@ -594,26 +659,54 @@ export default function AnalyticsDashboardClient({
             <div className="mt-5 flex flex-col gap-6 text-sm">
               {/* Subscription Plan & Quota Footprint */}
               <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-100 pb-3">
                   <div>
-                    <span className="text-xs font-medium text-neutral-500">Subscription Tier</span>
+                    <span className="text-xs font-medium text-neutral-500">Subscription Tier & Live Status</span>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-base font-bold text-indigo-950 uppercase">
                         {selectedOrg.plan_name ?? "Starter"}
                       </span>
-                      <span className="rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 uppercase">
-                        {selectedOrg.status}
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                          selectedOrg.status === "active"
+                            ? "bg-emerald-100 border-emerald-300 text-emerald-800"
+                            : selectedOrg.status === "trialing"
+                            ? "bg-amber-100 border-amber-300 text-amber-800"
+                            : "bg-red-100 border-red-300 text-red-800"
+                        }`}
+                      >
+                        ● {selectedOrg.status}
                       </span>
+                      {selectedOrg.billing_cycle && (
+                        <span className="rounded bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600 capitalize">
+                          {selectedOrg.billing_cycle}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  {selectedOrg.current_period_end && (
-                    <div className="text-right text-xs text-neutral-500">
-                      <span>Renews / Expires: </span>
-                      <strong className="text-neutral-900">
-                        {new Date(selectedOrg.current_period_end).toLocaleDateString()}
-                      </strong>
-                    </div>
-                  )}
+                  {(() => {
+                    const remaining = getRemainingTime(selectedOrg.current_period_end);
+                    return (
+                      <div className="text-right text-xs">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <span className="text-neutral-500">Live Status:</span>
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold border ${remaining.badgeClass}`}>
+                            ⏳ {remaining.label}
+                          </span>
+                        </div>
+                        {selectedOrg.current_period_end && (
+                          <div className="mt-1 text-[11px] text-neutral-500">
+                            Renews/Expires: <strong className="text-neutral-900">{new Date(selectedOrg.current_period_end).toLocaleDateString(undefined, { dateStyle: "medium" })}</strong>
+                            {selectedOrg.auto_renew !== undefined && selectedOrg.auto_renew !== null && (
+                              <span className="ml-1 text-neutral-400">
+                                ({selectedOrg.auto_renew ? "Auto-renew ON" : "Auto-renew OFF"})
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">

@@ -28,11 +28,21 @@ export default async function QrSheetPage() {
 
   const collegeId = profile?.college_id;
 
-  const { data: locations } = await supabase
-    .from("locations")
-    .select("id, parent_id, name, location_code, qr_token, archived")
-    .eq("college_id", collegeId!)
-    .order("name");
+  const [{ data: locations }, { data: joinCodeRow }] = await Promise.all([
+    supabase
+      .from("locations")
+      .select("id, parent_id, name, location_code, qr_token, archived")
+      .eq("college_id", collegeId!)
+      .order("name"),
+    supabase
+      .from("org_join_codes")
+      .select("code")
+      .eq("college_id", collegeId!)
+      .eq("is_active", true)
+      .maybeSingle(),
+  ]);
+
+  const activeJoinCode = joinCodeRow?.code ?? null;
 
   const all = locations ?? [];
   const byId = new Map(all.map((l) => [l.id, l]));
@@ -65,5 +75,5 @@ export default async function QrSheetPage() {
       location_code: l.location_code,
     }));
 
-  return <QrSheetClient eligible={eligible} withQr={withQr} />;
+  return <QrSheetClient eligible={eligible} withQr={withQr} activeJoinCode={activeJoinCode} />;
 }

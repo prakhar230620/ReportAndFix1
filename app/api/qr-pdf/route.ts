@@ -14,27 +14,37 @@ export async function POST(req: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("college_id")
     .eq("id", user.id)
     .single();
-  if (!profile || (profile.role !== "college_admin" && profile.role !== "super_admin")) {
-    return NextResponse.json({ error: "Not authorized" }, { status: 403 });
-  }
 
   const { location_ids } = (await req.json()) as { location_ids: string[] };
   if (!Array.isArray(location_ids) || location_ids.length === 0) {
     return NextResponse.json({ error: "location_ids required" }, { status: 400 });
   }
 
-  const { data: locations, error } = await supabase
-    .from("locations")
-    .select("id, name, location_code, qr_token")
-    .in("id", location_ids);
+  const [{ data: locations, error }, { data: joinCodeRow }] = await Promise.all([
+    supabase
+      .from("locations")
+      .select("id, name, location_code, qr_token")
+      .in("id", location_ids),
+    profile?.college_id
+      ? supabase
+          .from("org_join_codes")
+          .select("code")
+          .eq("college_id", profile.college_id)
+          .eq("is_active", true)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const activeJoinCode = (joinCodeRow as any)?.code ?? null;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   if (!locations || locations.length === 0) {
     return NextResponse.json({ error: "No matching locations found" }, { status: 404 });
   }
+
 
   const origin = req.nextUrl.origin;
   const pdfDoc = await PDFDocument.create();
@@ -77,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     // Layout constants for this cell
     const HEADER_H = 22;   // title bar height at top
-    const FOOTER_H = 48;   // text area height at bottom
+    const FOOTER_H = activeJoinCode ? 62 : 48;   // extra height when join code is printed
     const qrSize = Math.min(CELL_W, CELL_H) - HEADER_H - FOOTER_H - 20;
     const qrX = cellX + (CELL_W - qrSize) / 2;
     const qrY = cellY + FOOTER_H + 10;
@@ -134,6 +144,23 @@ export async function POST(req: NextRequest) {
         size: 8,
         font: fontRegular,
         color: rgb(0.55, 0.55, 0.55),
+      });
+    }
+    // Line 4: Join Code (printed prominently below location info)
+    if (activeJoinCode) {
+      page.drawText("Join Code:", {
+        x: cellX + 10,
+        y: cellY + FOOTER_H - 54,
+        size: 7,
+        font: fontRegular,
+        color: rgb(0.45, 0.45, 0.45),
+      });
+      page.drawText(activeJoinCode, {
+        x: cellX + 52,
+        y: cellY + FOOTER_H - 54,
+        size: 9,
+        font,
+        color: rgb(0.1, 0.1, 0.1),
       });
     }
 

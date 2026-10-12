@@ -93,7 +93,9 @@ $$;
 GRANT EXECUTE ON FUNCTION get_today_open_issues(uuid) TO anon, authenticated, service_role;
 
 -- 3. get_admin_queue
+-- Drop ALL possible overloads (old enum-typed + new text-typed) to avoid PGRST203 conflict
 DROP FUNCTION IF EXISTS get_admin_queue(uuid, text, uuid, uuid);
+DROP FUNCTION IF EXISTS get_admin_queue(uuid, public.complaint_status, uuid, uuid);
 DROP FUNCTION IF EXISTS get_admin_queue(uuid);
 CREATE OR REPLACE FUNCTION get_admin_queue(
   p_college_id uuid,

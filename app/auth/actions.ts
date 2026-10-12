@@ -41,23 +41,45 @@ export async function signup(formData: FormData) {
     redirect(`/signup?error=This+organisation+is+temporarily+unavailable.+Contact+your+administrator.&next=${encodeURIComponent(next)}`);
   }
 
-  // Validate join code if organisation has an active code
-  const joinCode = String(formData.get("join_code") ?? "").trim().toUpperCase();
-  const { data: activeJoinCode } = await supabase
-    .from("org_join_codes")
-    .select("code")
-    .eq("college_id", collegeId)
-    .eq("is_active", true)
-    .maybeSingle();
+  // Check if this is the first signup for this organisation
+  const { count: memberCount } = await supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("college_id", collegeId);
 
-  if (activeJoinCode) {
-    if (!joinCode || joinCode !== activeJoinCode.code) {
-      redirect(`/signup?error=Invalid+or+missing+organisation+join+code.+Please+ask+your+admin.&next=${encodeURIComponent(next)}`);
+  const isFirstSignup = (memberCount ?? 0) === 0;
+
+  if (!isFirstSignup) {
+    // Organisation already has members — validate join code if organisation has an active code
+    const { data: activeJoinCode } = await supabase
+      .from("org_join_codes")
+      .select("code")
+      .eq("college_id", collegeId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (activeJoinCode) {
+      const joinCode = String(formData.get("join_code") ?? "").trim().toUpperCase();
+      if (!joinCode) {
+        redirect(
+          `/signup?error=${encodeURIComponent(
+            "Organisation join code is required to join this organisation."
+          )}&next=${encodeURIComponent(next)}&org=${encodeURIComponent(collegeId)}`
+        );
+      }
+      if (joinCode !== activeJoinCode.code.toUpperCase()) {
+        redirect(
+          `/signup?error=${encodeURIComponent(
+            "Invalid organisation join code. Ask your organisation administrator for the code."
+          )}&next=${encodeURIComponent(next)}&org=${encodeURIComponent(collegeId)}`
+        );
+      }
     }
   }
 
 
-  const { error } = await supabase.auth.signUp({
+
+  const { data: signUpData, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -75,14 +97,33 @@ export async function signup(formData: FormData) {
     redirect(`/signup?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
   }
 
+  // If Supabase requires email verification, there is no active session yet
+  if (!signUpData?.session) {
+    if (requestedRole === "user") {
+      redirect(
+        `/login?next=${encodeURIComponent(next)}&notice=${encodeURIComponent(
+          "Account created! Please check your email to verify your account, then log in."
+        )}`
+      );
+    } else {
+      redirect(
+        `/login?next=${encodeURIComponent(next)}&notice=${encodeURIComponent(
+          "Account created! Please check your email to verify your account. Note that your " +
+            (requestedRole === "worker" ? "worker" : "college admin") +
+            " role requires administrator approval before taking effect."
+        )}`
+      );
+    }
+  }
+
   if (requestedRole === "user") {
     redirect(next);
   }
   redirect(
     `/login?next=${encodeURIComponent(next)}&notice=${encodeURIComponent(
-      "Account created. Confirm your email, then log in — your " +
+      "Account created! Your " +
         (requestedRole === "worker" ? "worker" : "college admin") +
-        " access needs approval first."
+        " role access is pending administrator approval."
     )}`
   );
 }

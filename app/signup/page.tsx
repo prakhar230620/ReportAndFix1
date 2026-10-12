@@ -42,14 +42,30 @@ export default async function SignupPage({
     if (activeCode) prefillCode = activeCode.code;
   }
 
-  const { data: colleges } = await supabase
-    .from("colleges")
-    .select("id, name, allow_worker_signup, allow_admin_signup, subscription_status")
-    .order("name");
+  const [{ data: colleges }, { data: profilesList }, { data: activeJoinCodes }] = await Promise.all([
+    supabase
+      .from("colleges")
+      .select("id, name, allow_worker_signup, allow_admin_signup, subscription_status")
+      .order("name"),
+    supabase.from("profiles").select("college_id").not("college_id", "is", null),
+    supabase.from("org_join_codes").select("college_id").eq("is_active", true),
+  ]);
 
-  const activeColleges = (colleges ?? []).filter(
-    (c) => !c.subscription_status?.startsWith("pending_deletion") && c.subscription_status !== "suspended"
-  );
+  const collegesWithMembers = new Set((profilesList ?? []).map((p) => p.college_id));
+  const collegesWithJoinCodes = new Set((activeJoinCodes ?? []).map((c) => c.college_id));
+
+  const activeColleges = (colleges ?? [])
+    .filter(
+      (c) => !c.subscription_status?.startsWith("pending_deletion") && c.subscription_status !== "suspended"
+    )
+    .map((c) => {
+      const isFirst = !collegesWithMembers.has(c.id);
+      return {
+        ...c,
+        isFirstSignup: isFirst,
+        requiresJoinCode: !isFirst && collegesWithJoinCodes.has(c.id),
+      };
+    });
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">

@@ -7,6 +7,8 @@ type College = {
   name: string;
   allow_worker_signup: boolean;
   allow_admin_signup: boolean;
+  isFirstSignup?: boolean;
+  requiresJoinCode?: boolean;
 };
 
 export default function CollegeRoleFields({
@@ -61,27 +63,36 @@ export default function CollegeRoleFields({
           <option value="">Select your organisation</option>
           {colleges.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.name}
+              {c.name} {c.isFirstSignup ? "(First Signup ✨)" : ""}
             </option>
           ))}
         </select>
       </label>
 
-      {collegeId && (
+      {collegeId && college?.isFirstSignup && (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+          ✨ <strong>First Member Signup:</strong> No organisation join code required for this organisation.
+        </div>
+      )}
+
+      {collegeId && college?.requiresJoinCode && (
         <label className="flex flex-col gap-1 text-sm">
           Organisation Join Code
           <input
             name="join_code"
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            placeholder="e.g. 6-character code"
-            className="rounded-md border border-neutral-300 px-3 py-2 uppercase tracking-wider font-mono text-neutral-800"
+            required
+            placeholder="e.g. 5TUN3M"
+            className="rounded-md border border-neutral-300 px-3 py-2 uppercase font-mono tracking-wider"
           />
           <span className="text-xs text-neutral-400">
-            Ask your organisation administrator for their 6-character code, or scan their QR code.
+            Ask your organisation administrator for this join code to register.
           </span>
         </label>
       )}
+
+
 
       {!collegeId ? (
 

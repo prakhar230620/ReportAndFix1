@@ -12,9 +12,11 @@ type WithQr = { id: string; name: string; path: string; qr_token: string; locati
 export default function QrSheetClient({
   eligible,
   withQr,
+  activeJoinCode,
 }: {
   eligible: Eligible[];
   withQr: WithQr[];
+  activeJoinCode: string | null;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -115,6 +117,31 @@ export default function QrSheetClient({
           </Link>
         </div>
 
+        {/* Join Code Banner */}
+        {activeJoinCode ? (
+          <div className="mb-4 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+            <span className="text-blue-600 text-lg">🔑</span>
+            <div>
+              <p className="text-sm font-semibold text-blue-900">
+                Organisation Join Code:{" "}
+                <span className="rounded bg-blue-100 px-2 py-0.5 font-mono tracking-widest text-blue-800">
+                  {activeJoinCode}
+                </span>
+              </p>
+              <p className="text-xs text-blue-600 mt-0.5">
+                This code is printed below each QR on the sheet. Share it with members who need to sign up.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="mb-4 flex items-center gap-3 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+            <span className="text-neutral-400 text-lg">ℹ️</span>
+            <p className="text-xs text-neutral-500">
+              No active join code — go to <strong>Settings → Join Code</strong> to create one if needed.
+            </p>
+          </div>
+        )}
+
         {eligible.length > 0 && (
           <section className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
@@ -205,10 +232,19 @@ export default function QrSheetClient({
                   alt={loc.name}
                   className="h-28 w-28"
                 />
-                <div className="mt-2 text-xs font-medium text-neutral-900">{loc.name}</div>
+                <div className="mt-2 text-xs font-semibold text-neutral-900">{loc.name}</div>
                 <div className="mt-0.5 break-words text-[10px] leading-snug text-neutral-500">
                   {loc.path}
                 </div>
+                {/* Join Code printed below QR */}
+                {activeJoinCode && (
+                  <div className="mt-1.5 flex flex-col items-center gap-0.5">
+                    <span className="text-[9px] uppercase tracking-wide text-neutral-400">Join Code</span>
+                    <span className="rounded bg-neutral-100 px-2 py-0.5 font-mono text-[11px] font-bold tracking-widest text-neutral-800">
+                      {activeJoinCode}
+                    </span>
+                  </div>
+                )}
               </div>
             ))}
         </div>

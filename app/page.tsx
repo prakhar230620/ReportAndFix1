@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { logout } from "@/app/auth/actions";
 import { roleLabel } from "@/lib/roleLabel";
 import Link from "next/link";
@@ -27,7 +28,36 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    code?: string;
+    token_hash?: string;
+    type?: string;
+    error?: string;
+    error_description?: string;
+  }>;
+}) {
+  const params = searchParams ? await searchParams : undefined;
+  if (params?.code) {
+    redirect(`/auth/callback?code=${encodeURIComponent(params.code)}&next=/reset-password`);
+  }
+  if (params?.token_hash && params?.type) {
+    redirect(
+      `/auth/callback?token_hash=${encodeURIComponent(params.token_hash)}&type=${encodeURIComponent(
+        params.type
+      )}&next=/reset-password`
+    );
+  }
+  if (params?.error || params?.error_description) {
+    redirect(
+      `/reset-password?error=${encodeURIComponent(
+        params.error_description || params.error || "Authentication error"
+      )}`
+    );
+  }
+
   const supabase = await createClient();
   const {
     data: { user },

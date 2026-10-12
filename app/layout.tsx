@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import PwaRegister from "./components/PwaRegister";
+import AuthHashListener from "./components/AuthHashListener";
 
 export const metadata: Metadata = {
   title: "ReportAndFix",
@@ -40,6 +41,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-neutral-50 text-neutral-900 antialiased">
         {children}
         <PwaRegister />
+        <AuthHashListener />
       </body>
     </html>
   );

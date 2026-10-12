@@ -29,6 +29,21 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  // Intercept any auth code or recovery callbacks landing on '/' (e.g. from password recovery email)
+  const code = request.nextUrl.searchParams.get("code");
+  const token_hash = request.nextUrl.searchParams.get("token_hash");
+  const type = request.nextUrl.searchParams.get("type");
+
+  if (
+    pathname === "/" &&
+    (code || (token_hash && (type === "recovery" || type === "email")) || type === "recovery")
+  ) {
+    const callbackUrl = request.nextUrl.clone();
+    callbackUrl.pathname = "/auth/callback";
+    callbackUrl.searchParams.set("next", "/reset-password");
+    return NextResponse.redirect(callbackUrl);
+  }
+
   // Security guard: If user is in the middle of password reset,
   // do not let them access the admin panel, worker tasks, or any other app routes
   // until they complete the reset or explicitly return to login.

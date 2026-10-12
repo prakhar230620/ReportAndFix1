@@ -112,15 +112,27 @@ export default function PlanEditor({ mode, plan }: { mode: "create" | "edit"; pl
                 </label>
               </div>
 
-              <p className="text-xs text-neutral-400">Use -1 for unlimited values</p>
+              <p className="text-xs text-neutral-400">Use -1 for unlimited values on limits (values cannot go below -1)</p>
               <div className="grid grid-cols-3 gap-3">
-                {(["max_storage_gb","max_complaints_per_month","max_workers","max_departments","max_admins","message_retention_hours","sort_order"] as const).map(k => (
-                  <label key={k} className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-neutral-600">{k.replace(/_/g," ")}</span>
-                    <input type="number" value={(form as any)[k]} onChange={e => set(k, Number(e.target.value))}
-                      className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
-                  </label>
-                ))}
+                {(["max_storage_gb","max_complaints_per_month","max_workers","max_departments","max_admins","message_retention_hours","sort_order"] as const).map(k => {
+                  const minLimit = k === "sort_order" ? 0 : -1;
+                  return (
+                    <label key={k} className="flex flex-col gap-1">
+                      <span className="text-xs font-medium text-neutral-600">{k.replace(/_/g," ")}</span>
+                      <input
+                        type="number"
+                        value={(form as any)[k]}
+                        onChange={e => {
+                          const v = Number(e.target.value);
+                          set(k, v < minLimit ? minLimit : v);
+                        }}
+                        min={minLimit}
+                        step={1}
+                        className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                      />
+                    </label>
+                  );
+                })}
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
