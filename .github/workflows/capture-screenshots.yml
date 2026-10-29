@@ -1,0 +1,65 @@
+name: Capture ReportAndFix screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_pages:
+        description: "Maximum number of screenshots across all four roles"
+        required: true
+        default: "40"
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Capture full-page desktop screenshots
+        env:
+          SCREENSHOT_BASE_URL: https://reportandfix-nine.vercel.app
+          SCREENSHOT_MAX_PAGES: ${{ inputs.max_pages }}
+          SHOT_SUPER_ADMIN_EMAIL: ${{ secrets.SHOT_SUPER_ADMIN_EMAIL }}
+          SHOT_SUPER_ADMIN_PASSWORD: ${{ secrets.SHOT_SUPER_ADMIN_PASSWORD }}
+          SHOT_DEPT_ADMIN_EMAIL: ${{ secrets.SHOT_DEPT_ADMIN_EMAIL }}
+          SHOT_DEPT_ADMIN_PASSWORD: ${{ secrets.SHOT_DEPT_ADMIN_PASSWORD }}
+          SHOT_WORKER_EMAIL: ${{ secrets.SHOT_WORKER_EMAIL }}
+          SHOT_WORKER_PASSWORD: ${{ secrets.SHOT_WORKER_PASSWORD }}
+          SHOT_USER_EMAIL: ${{ secrets.SHOT_USER_EMAIL }}
+          SHOT_USER_PASSWORD: ${{ secrets.SHOT_USER_PASSWORD }}
+        run: node scripts/capture-screenshots.mjs
+
+      - name: Package screenshots
+        if: always()
+        run: |
+          if [ -d artifacts/screenshots ]; then
+            cd artifacts
+            zip -qr reportandfix-screenshots.zip screenshots screenshots-summary.txt
+          fi
+
+      - name: Upload screenshots ZIP
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reportandfix-screenshots-1920x1080
+          path: artifacts/reportandfix-screenshots.zip
+          if-no-files-found: warn
+          retention-days: 7
