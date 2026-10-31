@@ -271,6 +271,11 @@ export default async function HomePage({
     .eq("id", user.id)
     .single();
 
+  console.info("[RF_DIAG_HOME]", {
+    user: user.id.slice(0, 8),
+    role: profile?.role ?? "profile_missing",
+  });
+
   const isAdmin = profile?.role === "college_admin" || profile?.role === "super_admin";
   const isDeptAdmin = profile?.role === "dept_admin";
   const isWorker = profile?.role === "worker";
