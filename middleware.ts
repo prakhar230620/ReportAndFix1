@@ -87,6 +87,15 @@ export async function middleware(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
+    if (pathname === "/" || request.headers.get("RSC") === "1") {
+      console.info("[RF_DIAG_AUTH]", {
+        path: pathname,
+        rsc: request.headers.get("RSC") === "1",
+        user: user.id.slice(0, 8),
+        role: profile?.role ?? "profile_missing",
+      });
+    }
+
     // Google OAuth (and any account without a completed profile) must pick
     // a college + role before doing anything else. super_admin has no
     // college_id by design, so it's excluded.
