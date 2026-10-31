@@ -38,7 +38,11 @@ export default function BrandLogo({
         className={`w-auto object-contain ${className}`}
       />
     );
-    return href ? <Link href={href} className="focus:outline-none">{fullLogo}</Link> : fullLogo;
+    return href
+      ? href === "/"
+        ? <a href={href} className="focus:outline-none">{fullLogo}</a>
+        : <Link href={href} className="focus:outline-none">{fullLogo}</Link>
+      : fullLogo;
   }
 
   const logoContent = (
@@ -73,9 +77,15 @@ export default function BrandLogo({
 
   if (href) {
     return (
-      <Link href={href} className="focus:outline-none">
-        {logoContent}
-      </Link>
+      href === "/" ? (
+        <a href={href} className="focus:outline-none">
+          {logoContent}
+        </a>
+      ) : (
+        <Link href={href} className="focus:outline-none">
+          {logoContent}
+        </Link>
+      )
     );
   }
 

@@ -43,7 +43,7 @@ export default function NavBar({
             <BrandLogo size="sm" showWordmark={false} href="/" />
           ) : logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <Link href="/" title="Home" className="relative flex h-10 w-10 items-center justify-center shrink-0">
+            <a href="/" title="Home" className="relative flex h-10 w-10 items-center justify-center shrink-0">
               <img
                 src={logoUrl}
                 alt="Organisation Logo"
@@ -62,11 +62,11 @@ export default function NavBar({
               >
                 <Building2 className="h-5 w-5" />
               </span>
-            </Link>
+            </a>
           ) : (
-            <Link href="/" title="Home" className="flex h-10 w-10 items-center justify-center rounded-xl border border-neutral-200 bg-neutral-100 text-neutral-500 hover:bg-neutral-200 transition shrink-0">
+            <a href="/" title="Home" className="flex h-10 w-10 items-center justify-center rounded-xl border border-neutral-200 bg-neutral-100 text-neutral-500 hover:bg-neutral-200 transition shrink-0">
               <Building2 className="h-5 w-5" />
-            </Link>
+            </a>
           )}
 
           <span className="text-xs sm:text-sm font-medium text-neutral-700 tracking-tight">{brand}</span>
@@ -85,25 +85,36 @@ export default function NavBar({
             const active = isRootRoute
               ? pathname === item.href
               : pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                prefetch={false}
-                className={`relative rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-600 hover:bg-neutral-100"
-                }`}
-              >
+            const linkClassName = `relative rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              active
+                ? "bg-neutral-900 text-white"
+                : "text-neutral-600 hover:bg-neutral-100"
+            }`;
+            const content = (
+              <>
                 {item.label}
                 {!!item.badge && (
                   <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
                     {item.badge}
                   </span>
                 )}
-              </Link>
+              </>
             );
+
+            return item.href === "/" ? (
+              <a key={item.href} href="/" className={linkClassName}>
+                {content}
+              </a>
+            ) : (
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch={false}
+                className={linkClassName}
+              >
+                {content}
+              </Link>
+            )
           })}
         </div>
       </nav>
