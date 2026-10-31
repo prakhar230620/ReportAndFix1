@@ -1,5 +1,5 @@
 // ReportAndFix Progressive Web App Service Worker
-const CACHE_NAME = 'reportandfix-v2';
+const CACHE_NAME = 'reportandfix-debug-v3';
 const STATIC_ASSETS = [
   '/',
   '/offline',
@@ -44,6 +44,17 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/auth/')
   ) {
+    return;
+  }
+
+  // Diagnostic experiment: bypass Service Worker handling for Next.js RSC requests.
+  // If the role-switch issue disappears with this bypass, SW-cached RSC was involved.
+  const isNextRsc =
+    request.headers.get('RSC') === '1' ||
+    request.headers.has('Next-Router-State-Tree') ||
+    request.headers.has('Next-Router-Prefetch');
+  if (isNextRsc) {
+    console.info('[RF_DIAG_SW] bypassing Next.js RSC request:', url.pathname);
     return;
   }
 
