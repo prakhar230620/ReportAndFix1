@@ -169,12 +169,6 @@ export async function login(formData: FormData) {
 
   const role = profile?.role;
 
-  console.info("[RF_DIAG_LOGIN]", {
-    user: authData.user.id.slice(0, 8),
-    role: role ?? "profile_missing",
-    next,
-  });
-
   // Prevent routing to another role's panel left behind in the query string from previous session
   if (next.startsWith("/super-admin") && role !== "super_admin") {
     next = "/";
