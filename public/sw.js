@@ -3,6 +3,7 @@
 // Never cache HTML documents, Next.js RSC/navigation payloads, or authenticated data.
 const CACHE_PREFIX = "reportandfix-static-";
 const CACHE_NAME = `${CACHE_PREFIX}v3`;
+const LEGACY_CACHE_NAMES = ["reportandfix-v2", "reportandfix-debug-v3"];
 
 const PRECACHE_ASSETS = [
   "/manifest.webmanifest",
@@ -34,7 +35,11 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
+            .filter(
+              (key) =>
+                (key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME) ||
+                LEGACY_CACHE_NAMES.includes(key)
+            )
             .map((key) => caches.delete(key))
         )
       )
@@ -69,9 +74,10 @@ self.addEventListener("fetch", (event) => {
       return fetch(request).then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();
-          event.waitUntil(
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache))
-          );
+          return caches
+            .open(CACHE_NAME)
+            .then((cache) => cache.put(request, responseToCache))
+            .then(() => networkResponse);
         }
         return networkResponse;
       });
