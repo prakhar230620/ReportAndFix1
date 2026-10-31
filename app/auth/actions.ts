@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 const VALID_SIGNUP_ROLES = new Set(["user", "worker", "college_admin"]);
@@ -152,19 +152,44 @@ export async function login(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   let next = String(formData.get("next") ?? "") || "/";
 
-  const supabase = await createClient();
+  // Auth actions must not silently continue if the refreshed session cookie cannot be written.
+  const supabase = await createClient({ strictCookieWrites: true });
 
-  const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password });
+  const authResult = await supabase.auth
+    .signInWithPassword({ email, password })
+    .catch(() => null);
+
+  if (!authResult) {
+    redirect(
+      `/login?error=${encodeURIComponent("Unable to save your login session. Please try again.")}&next=${encodeURIComponent(next)}`
+    );
+  }
+
+  const { data: authData, error } = authResult;
 
   if (error || !authData?.user) {
     redirect(`/login?error=${encodeURIComponent(error?.message ?? "Login failed")}&next=${encodeURIComponent(next)}`);
   }
 
-  // Fetch the role of the user logging in to prevent redirecting to another role's dashboard
+  // Confirm the server-side session now belongs to the account that just signed in.
+  // This prevents continuing with a stale account session after switching roles.
+  const {
+    data: { user: verifiedUser },
+    error: verificationError,
+  } = await supabase.auth.getUser();
+
+  if (verificationError || !verifiedUser || verifiedUser.id !== authData.user.id) {
+    await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+    redirect(
+      `/login?error=${encodeURIComponent("The new login session could not be verified. Please sign in again.")}&next=${encodeURIComponent(next)}`
+    );
+  }
+
+  // Fetch the role of the verified account, never a previously authenticated account.
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
-    .eq("id", authData.user.id)
+    .eq("id", verifiedUser.id)
     .single();
 
   const role = profile?.role;
@@ -185,8 +210,38 @@ export async function login(formData: FormData) {
 }
 
 export async function logout() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
+  const supabase = await createClient({ strictCookieWrites: true });
+
+  // Sign out only this browser/device; a failed network-side global sign-out
+  // must not leave this browser authenticated as the previous account.
+  await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+
+  // Explicitly expire the Supabase SSR auth cookie and any numbered chunks.
+  // This is a final safeguard against stale auth cookies surviving account switches.
+  const cookieStore = await cookies();
+  const projectRef = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split(".")[0];
+  const authCookiePrefix = `sb-${projectRef}-auth-token`;
+
+  for (const cookie of cookieStore.getAll()) {
+    if (
+      cookie.name === authCookiePrefix ||
+      cookie.name.startsWith(`${authCookiePrefix}.`)
+    ) {
+      cookieStore.delete(cookie.name);
+    }
+  }
+
+  const authCookieStillPresent = cookieStore.getAll().some(
+    ({ name }) =>
+      name === authCookiePrefix || name.startsWith(`${authCookiePrefix}.`)
+  );
+
+  if (authCookieStillPresent) {
+    redirect(
+      `/login?error=${encodeURIComponent("Could not clear the previous login session. Please retry logging out.")}`
+    );
+  }
+
   revalidatePath("/", "layout");
   redirect("/login");
 }
