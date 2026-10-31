@@ -231,16 +231,9 @@ export async function logout() {
     }
   }
 
-  const authCookieStillPresent = cookieStore.getAll().some(
-    ({ name }) =>
-      name === authCookiePrefix || name.startsWith(`${authCookiePrefix}.`)
-  );
-
-  if (authCookieStillPresent) {
-    redirect(
-      `/login?error=${encodeURIComponent("Could not clear the previous login session. Please retry logging out.")}`
-    );
-  }
+  // cookies() reflects the incoming request; delete() schedules Set-Cookie
+  // expiration headers and does not remove entries from this request snapshot.
+  // Do not re-check getAll() here or it will report the just-expired cookie.
 
   revalidatePath("/", "layout");
   redirect("/login");
