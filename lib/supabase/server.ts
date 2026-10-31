@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
-export async function createClient() {
+export async function createClient(options: { strictCookieWrites?: boolean } = {}) {
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -19,7 +19,10 @@ export async function createClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             );
-          } catch {
+          } catch (error) {
+            // Server Components cannot write cookies. Keep the default client
+            // tolerant there, but fail auth actions when session cookies cannot persist.
+            if (options.strictCookieWrites) throw error;
           }
         },
       },
